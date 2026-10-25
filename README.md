@@ -51,7 +51,8 @@ grumpy), a **fox** (brave, a bit cheeky) and a small **robot**.
 
 - `befehl` – JSON command, e.g. `{"aktion": "nachricht", "inhalt": "Hallo!", "warten": true}`;
   actions: nachricht, liebesbrief, ausdruck, requisit, deko_test, effekt, verreist, matrix, wetter, schmuck, accessoire,
-  spiel, frage, timer, geste, blick, nabu_richtung, schlafen, netz_test, telemetrie, wlan_dialog
+  spiel, frage, timer, geste, blick, nabu_richtung, schlafen, langeweile_test, netz_test, telemetrie, wlan_dialog,
+  bild (only with `yellow-bild.yaml`); gestures include winken, tanzen, faustgruss, hilfe, lichtschreck and the special moves
 - `daten/<name>` (retained) – anlass, wecker, termin, hinweis, wetter, wetter_lage, aussen_temp, raum_temp,
   raum_feuchte, sprueche; events without retain: klingel, nabu_ring
 - `ereignis` – JSON from the device: gelesen, antwort, spiel (+ wert), gestreichelt, timer_aus
