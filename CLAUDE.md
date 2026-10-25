@@ -29,6 +29,10 @@ the owner's private installation (family automations, servers, devices) is not p
   fetch new issues and comments (`gh issue list`, `gh issue view N --comments`), rewrite title and body into a clear
   English issue, keep the original as a quote at the end, and label it (`enhancement`/`documentation`, plus whether it
   is generic or a family example). Family-only ideas move to the private config, not this repo.
+- **Plan first, for every issue:** before any change, write a plan (what changes where, risks such as RAM, and how
+  to verify each point), review it (ideally by a second, independent agent or against the code), fix the plan, then
+  post the reviewed plan as an issue comment ("Plan (reviewed)") and only then start. When done, use the plan as the
+  test checklist: tick every point with how it was verified (screenshot, log, compile) in the closing comment.
 - Before working on an issue, read all comments; ask questions as comments. Reference the issue in commits
   (`Fixes #N`), close it with a short comment on what was done and what was left out, add a CHANGELOG line.
 
