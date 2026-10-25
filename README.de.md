@@ -78,21 +78,13 @@ Felder und Werte steht in der [englischen README](README.md#mqtt-topics-yellowde
 2. `esphome/example-home.yaml` daneben kopieren (nach `…/esphome/`), Substitutionen (auch `language: de`) und
    Secrets setzen, flashen.
 3. In Home Assistant: ein MQTT-Broker (z. B. das Mosquitto-Add-on) mit einem eigenen Benutzer für Yellow, dann die
-   Blueprints unten importieren und je Blueprint eine Automation mit dem Gerätenamen anlegen.
+   Blueprints aus [docs_de/homeassistant.md](docs_de/homeassistant.md).
 
-## Home-Assistant-Blueprints
+## Home Assistant
 
-| | |
-|---|---|
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_data.yaml) | **Daten senden** – Wetter, nächster Wecker, nächster Termin, eine Hinweiszeile, Außen-/Raumtemperatur und Feuchte (Sprache der Wörter wählbar) |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_doorbell.yaml) | **Türklingel** – Klingel-Panel für 60 s, wenn der Raum hell ist |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_voice_assistant_ring.yaml) | **LED-Ring des Sprachassistenten** – Yellow schaut hin, wenn der Ring leuchtet (braucht `yellow-nabu.yaml`) |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_post_read.yaml) | **Lesebestätigung** – eigene Aktionen, wenn eine Nachricht oder ein Liebesbrief gelesen wurde |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fscript%2Fyellow_message.yaml) | **Nachricht (Skript)** – Nachricht, Post oder Liebesbrief; für Assist freigeben für „Sag Yellow …“ |
-
-Alles andere: einen JSON-Befehl mit `mqtt.publish` an `yellow/<gerät>/command` schicken (siehe oben).
-Tipps: Yellow einen eigenen MQTT-Benutzer geben; nur das Nachrichten-Skript für Assist freigeben; Anlass-Kalender,
-LLM-Sprüche, Spielrekorde und die Hausgeist-Reaktionen des Originalaufbaus sind noch keine Blueprints (siehe Issues).
+Einrichtung, Entitäten, Sprache und alle Blueprints mit Import-Knöpfen: **[docs_de/homeassistant.md](docs_de/homeassistant.md)**.
+Blueprints bisher: Daten senden (Wetter, Wecker, Termin, Raumklima), Türklingel, LED-Ring des Sprachassistenten,
+Lesebestätigung, Nachrichten-Skript. Alles andere: einen JSON-Befehl an `yellow/<gerät>/command` schicken (siehe oben).
 
 ## Stand
 

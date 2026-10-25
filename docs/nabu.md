@@ -20,6 +20,7 @@ without it Yellow runs normally.
 
 ## Setup tips
 
+- Home Assistant setup and the blueprints: [homeassistant.md](homeassistant.md).
 - Expose only the few Yellow scripts to Assist that you want to say out loud (message, game, question, love letter);
   give each a clear description, the LLM picks them by that text.
 - Keep the assistant's ring automation fast: Yellow only needs an `on` event, no retained state.

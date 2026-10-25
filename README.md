@@ -89,22 +89,14 @@ same keys.
 
 1. Clone this repo into your ESPHome config folder (`…/esphome/cheap-yellow-companion`).
 2. Copy `esphome/example-home.yaml` next to it (into `…/esphome/`), set the substitutions and secrets, flash.
-3. In Home Assistant: an MQTT broker (e.g. the Mosquitto add-on) with a user for Yellow, then import the blueprints
-   below and create one automation per blueprint with your device name.
+3. In Home Assistant: an MQTT broker (e.g. the Mosquitto add-on) with a user for Yellow, then the blueprints from
+   [docs/homeassistant.md](docs/homeassistant.md).
 
-## Home Assistant blueprints
+## Home Assistant
 
-| | |
-|---|---|
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_data.yaml) | **Send data** – weather, next alarm, next appointment, a notice line, outdoor/room temperature and humidity |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_doorbell.yaml) | **Doorbell** – doorbell panel for 60 s when the room is lit |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_voice_assistant_ring.yaml) | **Voice assistant LED ring** – Yellow looks over when the ring lights up (needs `yellow-nabu.yaml`) |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_post_read.yaml) | **Read receipt** – your actions when a message or love letter was read |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fscript%2Fyellow_message.yaml) | **Message (script)** – message, post or love letter; expose it to Assist for "Tell Yellow …" |
-
-Anything else: publish a JSON command to `yellow/<device>/command` with `mqtt.publish` (see topics above).
-Tips: give Yellow its own MQTT user; expose only the message script to Assist; the occasions calendar, LLM one-liners,
-games records and the house-ghost reactions of the original setup are not blueprints yet (see the issues).
+Setup, entities, language and all blueprints with import buttons: **[docs/homeassistant.md](docs/homeassistant.md)**.
+Blueprints today: send data (weather, alarm, appointment, climate), doorbell, voice assistant LED ring, read receipt,
+message script. Anything else: publish a JSON command to `yellow/<device>/command` (see topics above).
 
 ## Status
 

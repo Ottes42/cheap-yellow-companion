@@ -123,6 +123,8 @@ Where it lives: `esphome/yellow.h` (class `Companion`, tick loop) and `esphome/y
 
 ## Home Assistant
 
+Setup, entities and blueprints in detail: [docs/homeassistant.md](docs/homeassistant.md).
+
 | Feature | Description | Since |
 |---|---|---|
 | Device entities | Over the ESPHome API: sliders for mood, tension and energy; switches for sleep, night off, wake-up mode and auto brightness; selects for view, decoration and character; buttons for play post, clear post, cancel question and the three games; sensors for waiting messages, today's counters, visible, Wi-Fi name, light level and free memory; display backlight and status LED as lights. | 0.1.0 |

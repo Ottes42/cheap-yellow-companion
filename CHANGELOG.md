@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- `docs/homeassistant.md` (+ German copy): setup, entities, language, every blueprint with import button and example;
+  the README links it instead of the blueprint table (#33)
+
 ## [0.2.0] – 2026-10-25
 
 English first, translatable at compile time (#1). **Breaking:** MQTT interface, file names and substitutions are

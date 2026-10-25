@@ -20,6 +20,7 @@ Yellow ganz normal.
 
 ## Tipps zur Einrichtung
 
+- Einrichtung in Home Assistant und die Blueprints: [homeassistant.md](homeassistant.md).
 - Nur die wenigen Yellow-Skripte für Assist freigeben, die man laut sagen will (Nachricht, Spiel, Frage, Liebesbrief);
   jedes mit einer klaren Beschreibung, das LLM wählt danach aus.
 - Die Ring-Automation schnell halten: Yellow braucht nur ein `on`-Ereignis, keinen gespeicherten Zustand.

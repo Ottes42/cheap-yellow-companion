@@ -25,8 +25,9 @@ the owner's private installation (family automations, servers, devices) is not p
 - Touch calibration is per board (`board-cyd.yaml`, `transform`/`calibration`); check raw values with log level DEBUG.
 - Every new feature or idea: decide whether it is generic (here) or family-specific (stays in the private config),
   note it in the issue, add a CHANGELOG line.
-- Home Assistant side: ship and update blueprints, document setup tips; the voice assistant part lives in
-  `docs/nabu.md`.
+- Home Assistant side: ship and update blueprints; a new or changed blueprint gets its section in
+  `docs/homeassistant.md` and `docs_de/homeassistant.md` (import button, inputs, example). The voice assistant part
+  lives in `docs/nabu.md`.
 
 ## Issues workflow
 
