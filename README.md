@@ -36,6 +36,8 @@ grumpy), a **fox** (brave, a bit cheeky) and a small **robot**.
 - **Telemetry and activity log** (MQTT, retained), **remote one-liners** (your own list, stored on the device).
 - Optional: **together with a voice assistant** (Home Assistant Voice), see [docs/nabu.md](docs/nabu.md).
 
+The complete list, with the version each feature appeared in: [FEATURES.md](FEATURES.md).
+
 ## Profiles
 
 | Package | Use |

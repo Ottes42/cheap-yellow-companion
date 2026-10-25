@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- `FEATURES.md`: complete feature list with "since" version (#31)
 - Gallery page and README GIFs, recorded pixel-exact from the device
 - Optional package `esphome/yellow-bild.yaml` (command `bild`) and `tools/bild.py` for screenshots and GIFs over MQTT,
   `tools/rahmen.py` puts them into a drawn CYD board
