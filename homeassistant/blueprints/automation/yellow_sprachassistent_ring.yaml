@@ -1,0 +1,37 @@
+blueprint:
+  name: Yellow – voice assistant LED ring
+  description: >-
+    Yellow looks over (jealous or curious) whenever the voice assistant's LED ring lights up. Needs the
+    `yellow-nabu.yaml` package on the device. Sends `on` to `yellow/<device>/daten/nabu_ring`. See docs/nabu.md.
+  domain: automation
+  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_sprachassistent_ring.yaml
+  input:
+    geraet:
+      name: Device
+      default: yellow
+      selector:
+        text:
+    ring:
+      name: LED ring
+      description: The light entity of the voice assistant's ring (e.g. Home Assistant Voice)
+      selector:
+        entity:
+          domain: light
+
+mode: single
+max_exceeded: silent
+
+variables:
+  geraet: !input geraet
+
+triggers:
+  - trigger: state
+    entity_id: !input ring
+    from: "off"
+    to: "on"
+
+actions:
+  - action: mqtt.publish
+    data:
+      topic: "yellow/{{ geraet }}/daten/nabu_ring"
+      payload: "on"

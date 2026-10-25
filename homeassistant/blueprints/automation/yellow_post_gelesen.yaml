@@ -1,0 +1,39 @@
+blueprint:
+  name: Yellow – read receipt
+  description: >-
+    Someone tapped Yellow and read a waiting message or love letter: run your actions (e.g. a phone notification).
+    Variables for your actions: `text` (the message), `liebe` (true for a love letter), `geraet`.
+  domain: automation
+  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_post_gelesen.yaml
+  input:
+    geraet:
+      name: Device
+      default: yellow
+      selector:
+        text:
+    aktionen:
+      name: Actions
+      description: 'Example: notify your phone with message "Gelesen: {{ text }}"'
+      selector:
+        action:
+
+mode: queued
+
+trigger_variables:
+  geraet: !input geraet
+
+triggers:
+  - trigger: mqtt
+    topic: "yellow/{{ geraet }}/ereignis"
+
+conditions:
+  - condition: template
+    value_template: "{{ trigger.payload_json.typ | default('') == 'gelesen' }}"
+
+actions:
+  - variables:
+      roh: "{{ trigger.payload_json.text | default('') }}"
+      liebe: "{{ roh.startswith('LIEBE|') }}"
+      text: "{{ roh[6:] if liebe else roh }}"
+  - choose: []
+    default: !input aktionen

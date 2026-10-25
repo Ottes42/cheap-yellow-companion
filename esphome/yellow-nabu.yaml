@@ -1,0 +1,10 @@
+# Feature „mit Nabu“ für Yellow: Yellow schaut zu Nabus LED-Ring (neidisch/neugierig) und weiß, wo Nabu steht.
+# Einbinden im Gerät unter packages:. Ohne dieses Paket läuft Yellow normal weiter; Nabus Ring (daten/nabu_ring), die
+# Richtung (Befehl nabu_richtung), Besuche und Schlagabtausch kommen aus HA (siehe docs/nabu.md).
+
+text_sensor:
+  - platform: mqtt_subscribe # Nabus LED-Ring geht an (Ereignis von HA): Yellow schaut neidisch oder neugierig hin
+    id: nabu_ring
+    topic: yellow/${geraet}/daten/nabu_ring
+    on_value:
+      - lambda: if (x == "on") yellow::figur.nabu_ring();

@@ -1,0 +1,82 @@
+# ESP32-2432S028R „Cheap Yellow Display“ (1 USB-Anschluss, ILI9341, resistiver Touch XPT2046, kein PSRAM): nur Hardware.
+# Display-SPI 14/13/12, CS 15, DC 2, Backlight 21 · Touch-SPI 25/32/39, CS 33, IRQ 36
+# RGB-LED 4/16/17 (low-aktiv) · LDR 34 · Lautsprecher 26 · I²C an CN1: SDA 27, SCL 22 (frei für einen Sensor)
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+spi:
+  - id: spi_display
+    clk_pin: GPIO14
+    mosi_pin: GPIO13
+    miso_pin: GPIO12
+  - id: spi_touch
+    clk_pin: GPIO25
+    mosi_pin: GPIO32
+    miso_pin: GPIO39
+
+display:
+  - platform: mipi_spi
+    id: tft
+    model: ESP32-2432S028
+    spi_id: spi_display
+    update_interval: never # LVGL zeichnet selbst
+
+touchscreen:
+  - platform: xpt2046
+    id: touch
+    spi_id: spi_touch
+    cs_pin: GPIO33
+    interrupt_pin: GPIO36
+    threshold: 400
+    transform: # roh-x wird im Querformat zur Höhe und war gespiegelt („?“ unten rechts kam oben an, 25.10.)
+      mirror_x: true
+    calibration: # typische CYD-Werte, bei Bedarf per Log (Loglevel DEBUG) nachjustieren
+      x_min: 280
+      x_max: 3860
+      y_min: 340
+      y_max: 3860
+
+output:
+  - platform: ledc
+    id: backlight_pwm
+    pin: GPIO21
+  - platform: ledc
+    id: led_r
+    pin: { number: GPIO4, inverted: true }
+  - platform: ledc
+    id: led_g
+    pin: { number: GPIO16, inverted: true }
+  - platform: ledc
+    id: led_b
+    pin: { number: GPIO17, inverted: true }
+
+light:
+  - platform: monochromatic
+    id: backlight
+    name: Display
+    output: backlight_pwm
+    restore_mode: ALWAYS_ON
+    default_transition_length: 800ms
+  - platform: rgb
+    id: status_led
+    name: Status-LED
+    red: led_r
+    green: led_g
+    blue: led_b
+    restore_mode: ALWAYS_OFF
+
+sensor:
+  - platform: adc
+    id: ldr
+    name: Umgebungslicht # steigt bei Dunkelheit: Licht an ~0,14 V, dunkel > 1 V
+    pin: GPIO34
+    attenuation: 12db
+    update_interval: 2s
+    unit_of_measurement: V
+    entity_category: diagnostic
+    filters:
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 5

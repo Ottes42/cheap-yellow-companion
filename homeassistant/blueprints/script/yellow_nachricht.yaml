@@ -1,0 +1,46 @@
+blueprint:
+  name: Yellow – message
+  description: >-
+    Shows a message on Yellow's cardboard sign. With "wait" he first waves and shows an envelope until someone taps
+    him. Long texts are split across several signs. Expose the script to Assist to say "Tell Yellow …".
+  domain: script
+  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/script/yellow_nachricht.yaml
+  input:
+    geraet:
+      name: Device
+      default: yellow
+      selector:
+        text:
+
+mode: queued
+
+fields:
+  text:
+    name: Text
+    description: What Yellow should hold up (short sentences work best)
+    required: true
+    selector:
+      text:
+  warten:
+    name: Wait for a tap
+    description: Deliver as post (envelope, until someone taps)
+    default: false
+    selector:
+      boolean:
+  liebesbrief:
+    name: Love letter
+    description: Pink envelope with a heart seal, hearts rise when read
+    default: false
+    selector:
+      boolean:
+
+variables:
+  geraet: !input geraet
+
+sequence:
+  - action: mqtt.publish
+    data:
+      topic: "yellow/{{ geraet }}/befehl"
+      payload: >-
+        {{ {'aktion': 'liebesbrief', 'text': text[:150]} | tojson if liebesbrief | default(false)
+           else {'aktion': 'nachricht', 'inhalt': text[:300], 'warten': warten | default(false), 'sekunden': 5} | tojson }}

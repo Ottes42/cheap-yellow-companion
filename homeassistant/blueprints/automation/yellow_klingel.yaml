@@ -1,0 +1,36 @@
+blueprint:
+  name: Yellow – doorbell
+  description: >-
+    When the doorbell rings, Yellow shows "Es klingelt" for 60 s and reacts (only when the room is lit).
+    Sends `on` to `yellow/<device>/daten/klingel` (not retained).
+  domain: automation
+  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_klingel.yaml
+  input:
+    geraet:
+      name: Device
+      default: yellow
+      selector:
+        text:
+    klingel:
+      name: Doorbell
+      description: Binary sensor that turns on when someone rings
+      selector:
+        entity:
+          domain: binary_sensor
+
+mode: single
+max_exceeded: silent
+
+variables:
+  geraet: !input geraet
+
+triggers:
+  - trigger: state
+    entity_id: !input klingel
+    to: "on"
+
+actions:
+  - action: mqtt.publish
+    data:
+      topic: "yellow/{{ geraet }}/daten/klingel"
+      payload: "on"

@@ -1,0 +1,172 @@
+# Yellow – MQTT (beide Profile): Befehle, Daten und Ereignisse unter yellow/${geraet}/…
+# Befehle: JSON an yellow/${geraet}/befehl, {"aktion": …} plus dieselben Felder wie früher die ESPHome-Aktionen
+#   (nachricht: inhalt/warten/sekunden, liebesbrief: text, ausdruck, requisit, deko_test: anlass, effekt: name, …).
+# Daten (retained, von HA bzw. dem Server): yellow/${geraet}/daten/<anlass|wecker|termin|hinweis|wetter|wetter_lage|
+#   aussen_temp|raum_temp|raum_feuchte>, Ereignisse ohne retain: daten/klingel, daten/nabu_ring.
+# Ereignisse vom Gerät: JSON an yellow/${geraet}/ereignis (typ gelesen/antwort/spiel/gestreichelt/timer_aus).
+# Status: yellow/${geraet}/status online/offline (retained, Last Will). Broker und TLS setzt das Profil.
+mqtt:
+  username: ${mqtt_user}
+  password: ${mqtt_passwort}
+  client_id: ${mqtt_user}
+  topic_prefix: yellow/${geraet}
+  discovery: false
+  log_topic: null
+  reboot_timeout: 0s
+  keepalive: 120s
+  birth_message:
+    topic: yellow/${geraet}/status
+    payload: online
+    retain: true
+  will_message:
+    topic: yellow/${geraet}/status
+    payload: offline
+    retain: true
+  on_connect:
+    - script.execute: telemetrie_senden
+  on_json_message:
+    - topic: yellow/${geraet}/befehl
+      then:
+        - lambda: |-
+            const std::string a = x["aktion"] | "";
+            auto s = [&](const char *k) { return std::string(x[k] | ""); };
+            const int sek = x["sekunden"] | 0;
+            const bool an = x["an"] | false;
+            auto &f = yellow::figur;
+            if (a == "nachricht") f.nachricht(s("inhalt"), x["warten"] | false, x["sekunden"] | 4);
+            else if (a == "liebesbrief") f.nachricht(std::string(yellow::LIEBE_PRAEFIX) + s("text"), true, 5);
+            else if (a == "ausdruck") f.setze_ausdruck(s("ausdruck"), sek);
+            else if (a == "requisit") f.requisit(s("requisit"), sek);
+            else if (a == "deko_test") f.deko_test(s("anlass"));
+            else if (a == "effekt") f.effekt(s("name"), sek);
+            else if (a == "langeweile_test") f.langeweile_test(x["minuten"] | 0);
+            else if (a == "verreist") f.verreist(an, s("karte"));
+            else if (a == "matrix") f.matrix(sek);
+            else if (a == "netz_test") id(netz_test) = x["stufe"] | (an ? 1 : 0);
+            else if (a == "wetter") f.wetter_test(s("lage"));
+            else if (a == "schmuck") f.schmuck(an);
+            else if (a == "accessoire") f.accessoire(s("name"));
+            else if (a == "spiel") f.spiel(s("spiel"));
+            else if (a == "frage") f.frage(s("frage"), s("optionen"));
+            else if (a == "timer") f.timer(sek, s("name"));
+            else if (a == "geste") f.geste(s("geste"));
+            else if (a == "blick") f.blick(s("richtung"));
+            else if (a == "nabu_richtung") f.nabu_richtung(s("richtung"));
+            else if (a == "schlafen") f.schlafen(an);
+            else if (a == "telemetrie") id(telemetrie_senden).execute();
+            else if (a == "wlan_dialog") id(wlan_oeffnen).execute();  // zum Testen ohne Tippen
+            else ESP_LOGW("yellow", "unbekannte Aktion: %s", a.c_str());
+
+# Telemetrie (retained) beim Verbinden und alle 30 min: Lebenszeichen, Zustand und gesammeltes Aktivitätsprotokoll
+script:
+  - id: telemetrie_senden
+    then:
+      - lambda: |-
+          if (mqtt::global_mqtt_client == nullptr || !mqtt::global_mqtt_client->is_connected()) return;
+          float licht = id(ldr).state;
+          bool ok = mqtt::global_mqtt_client->publish_json("yellow/${geraet}/telemetrie", [licht](JsonObject r) {
+            r["firmware"] = ESPHOME_VERSION " " __DATE__ " " __TIME__;
+            r["laufzeit_s"] = millis() / 1000;
+            r["neustartgrund"] = id(neustartgrund).state;
+            r["frei"] = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);  // wie die Speicher-Sensoren
+            r["block"] = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+            r["wlan"] = id(wlan_name).state;
+            r["rssi"] = wifi::global_wifi_component->wifi_rssi();
+            r["dunkel"] = !std::isnan(licht) && licht >= ${ldr_dunkel};
+            r["ansicht"] = lv_obj_has_flag(id(uhr_ansicht), LV_OBJ_FLAG_HIDDEN) ? "yellow" : "uhr";
+            r["figur"] = id(figur_art).current_option();
+            r["heute"] = yellow::figur.zahlen_text();  // tipps|streicheln|spiele|faust
+            JsonArray p = r["protokoll"].to<JsonArray>();
+            for (auto &e : id(protokoll)) p.add(e);
+          }, 1, true);
+          ESP_LOGI("yellow", "Telemetrie %s (%u Einträge)", ok ? "gesendet" : "fehlgeschlagen", (unsigned) id(protokoll).size());
+          if (ok) id(protokoll).clear();
+
+interval:
+  - interval: 30min
+    then:
+      - script.execute: telemetrie_senden
+
+text_sensor:
+  - platform: mqtt_subscribe # Spruchliste aus der Ferne (retained, Zeilen; „-“ = keine), siehe script.yellow_sprueche
+    id: ha_sprueche
+    topic: yellow/${geraet}/daten/sprueche
+    on_value:
+      - lambda: |-
+          std::string t = x.substr(0, 599);
+          yellow::figur.fern_sprueche(t);
+          auto &g = id(sprueche_gesichert);
+          if (t != g.data()) {  // nur bei Änderung in den Flash
+            g.fill(0);
+            t.copy(g.data(), 599);
+          }
+  - platform: mqtt_subscribe # heutiger Anlass für die Deko
+    id: ha_anlass
+    topic: yellow/${geraet}/daten/anlass
+    on_value:
+      - lambda: 'yellow::figur.anlass(x == "unknown" || x == "unavailable" ? std::string("") : x);'
+  - platform: mqtt_subscribe
+    id: ha_wecker
+    topic: yellow/${geraet}/daten/wecker
+    on_value:
+      - script.execute: zeilen_zeichnen
+  - platform: mqtt_subscribe
+    id: ha_termin
+    topic: yellow/${geraet}/daten/termin
+    on_value:
+      - script.execute: zeilen_zeichnen
+  - platform: mqtt_subscribe
+    id: ha_hinweis
+    topic: yellow/${geraet}/daten/hinweis
+    on_value:
+      - script.execute: zeilen_zeichnen
+  - platform: mqtt_subscribe
+    id: ha_wetter
+    topic: yellow/${geraet}/daten/wetter
+    on_value:
+      - script.execute: wetter_zeichnen
+  - platform: mqtt_subscribe
+    id: ha_wetter_lage
+    topic: yellow/${geraet}/daten/wetter_lage
+    on_value:
+      - script.execute: wetter_zeichnen
+  - platform: mqtt_subscribe # Türklingel (Ereignis „on“): Panel „Es klingelt“ 60 s, im Dunkeln keine Reaktion
+    id: tuerklingel
+    topic: yellow/${geraet}/daten/klingel
+    on_value:
+      - if:
+          condition:
+            lambda: |-
+              float v = id(ldr).state;
+              return x == "on" && (std::isnan(v) || v < ${ldr_dunkel});
+          then:
+            - lambda: yellow::figur.klingel();
+            - lvgl.label.update:
+                id: lbl_ein
+                text: "\U000F009E  Es klingelt"
+            - lvgl.label.update:
+                id: lbl_aus
+                text: !lambda |-
+                  auto t = id(ha_time).now();
+                  return t.is_valid() ? str_sprintf("an der Haustür, %02d:%02d", t.hour, t.minute) : std::string("an der Haustür");
+            - script.execute:
+                id: panel_zeigen
+                sekunden: 60
+            - script.execute: aufwecken
+
+sensor:
+  - platform: mqtt_subscribe
+    id: klima_temp
+    topic: yellow/${geraet}/daten/raum_temp
+    on_value:
+      - script.execute: klima_zeichnen
+  - platform: mqtt_subscribe
+    id: klima_feuchte
+    topic: yellow/${geraet}/daten/raum_feuchte
+    on_value:
+      - script.execute: klima_zeichnen
+  - platform: mqtt_subscribe
+    id: aussen_temp
+    topic: yellow/${geraet}/daten/aussen_temp
+    on_value:
+      - script.execute: klima_zeichnen
