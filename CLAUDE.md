@@ -6,7 +6,7 @@ board frame), `FEATURES.md` (complete feature list, read it first to see what ex
 the owner's private installation (family automations, servers, devices) is not part of this repo.
 
 - Owner writes German; everything in the repo is English: code, identifiers, comments, MQTT interface, docs
-  (`README.md`, `docs/`). German copies: `README.de.md`, `docs_de/` (keep them in sync when a doc changes).
+  (`README.md`, `docs/`). German copies: `README.de.md`, `docs_de/` (incl. `docs_de/FEATURES.md`) (keep them in sync when a doc changes).
 - Every on-screen text lives only in `esphome/lang/<language>.h` (`txt::NAME`) and every entity name or YAML text in
   `esphome/lang/<language>.yaml` (`${t_name}`); a new text needs an entry in **each** language file. Never compare
   select options by text (they are translated), use the index. The MQTT interface is not translated.

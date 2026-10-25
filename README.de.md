@@ -39,7 +39,7 @@ und grummelig), ein **Fuchs** (mutig, etwas frech) und ein kleiner **Roboter**.
 - **Deutsch oder Englisch**, beim Kompilieren gewählt (`language: de|en`).
 - Optional: **zusammen mit einem Sprachassistenten** (Home Assistant Voice), siehe [docs_de/nabu.md](docs_de/nabu.md).
 
-Die vollständige Liste mit der Version, seit der es jede Funktion gibt: [FEATURES.md](FEATURES.md) (englisch).
+Die vollständige Liste mit der Version, seit der es jede Funktion gibt: [docs_de/FEATURES.md](docs_de/FEATURES.md).
 
 ## Profile
 

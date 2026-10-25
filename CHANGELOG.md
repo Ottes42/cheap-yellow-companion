@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `docs_de/FEATURES.md`: German feature list
+
 - `docs/homeassistant.md` (+ German copy): setup, entities, language, every blueprint with import button and example;
   the README links it instead of the blueprint table (#33)
 

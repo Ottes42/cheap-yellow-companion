@@ -1,5 +1,7 @@
 # Features
 
+🇩🇪 [Deutsche Version](docs_de/FEATURES.md)
+
 Everything Yellow can do today, as a reference for the curious and a quick orientation for anyone (human or agent)
 working on this repo. The [README](README.md) stays short; this list is complete. Changes per release:
 [CHANGELOG.md](CHANGELOG.md).
