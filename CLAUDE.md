@@ -23,6 +23,8 @@ the owner's private installation (family automations, servers, devices) is not p
 
 ## Issues workflow
 
+- Undecided ideas go to `IDEAS.md`; a decided idea becomes an issue; done work goes to the CHANGELOG (and the feature
+  list, issue #31).
 - The owner drops raw ideas as issues (German, keywords are fine). At the start of a work session, or when asked,
   fetch new issues and comments (`gh issue list`, `gh issue view N --comments`), rewrite title and body into a clear
   English issue, keep the original as a quote at the end, and label it (`enhancement`/`documentation`, plus whether it
