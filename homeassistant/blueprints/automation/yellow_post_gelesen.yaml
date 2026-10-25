@@ -4,7 +4,7 @@ blueprint:
     Someone tapped Yellow and read a waiting message or love letter: run your actions (e.g. a phone notification).
     Variables for your actions: `text` (the message), `liebe` (true for a love letter), `geraet`.
   domain: automation
-  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_post_gelesen.yaml
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_post_gelesen.yaml
   input:
     geraet:
       name: Device

@@ -4,7 +4,7 @@ blueprint:
     When the doorbell rings, Yellow shows "Es klingelt" for 60 s and reacts (only when the room is lit).
     Sends `on` to `yellow/<device>/daten/klingel` (not retained).
   domain: automation
-  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_klingel.yaml
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_klingel.yaml
   input:
     geraet:
       name: Device

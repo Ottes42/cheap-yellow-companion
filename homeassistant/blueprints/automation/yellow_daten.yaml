@@ -6,7 +6,7 @@ blueprint:
     outdoor and room temperature, room humidity. Runs every 10 minutes, at Home Assistant start and as soon as the
     device comes online. Leave optional inputs empty to hide that line.
   domain: automation
-  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_daten.yaml
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_daten.yaml
   input:
     geraet:
       name: Device

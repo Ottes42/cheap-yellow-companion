@@ -4,7 +4,7 @@ blueprint:
     Shows a message on Yellow's cardboard sign. With "wait" he first waves and shows an envelope until someone taps
     him. Long texts are split across several signs. Expose the script to Assist to say "Tell Yellow …".
   domain: script
-  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/script/yellow_nachricht.yaml
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/script/yellow_nachricht.yaml
   input:
     geraet:
       name: Device

@@ -4,7 +4,7 @@ blueprint:
     Yellow looks over (jealous or curious) whenever the voice assistant's LED ring lights up. Needs the
     `yellow-nabu.yaml` package on the device. Sends `on` to `yellow/<device>/daten/nabu_ring`. See docs/nabu.md.
   domain: automation
-  source_url: https://github.com/ottes/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_sprachassistent_ring.yaml
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_sprachassistent_ring.yaml
   input:
     geraet:
       name: Device
