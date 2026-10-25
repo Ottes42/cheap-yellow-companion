@@ -1,5 +1,7 @@
 # Yellow and the voice assistant ("Nabu")
 
+🇩🇪 [Deutsche Version](../docs_de/nabu.md)
+
 Yellow is mute; the voice assistant next to him is not. In the original setup that is a **Home Assistant Voice**
 (Preview Edition) called *Nabu*, running a custom ESPHome firmware with a small OLED. Everything here is optional:
 without it Yellow runs normally.
@@ -8,13 +10,13 @@ without it Yellow runs normally.
 
 | Feature | How |
 |---|---|
-| Yellow looks at Nabu's LED ring (jealous or curious) | `yellow-nabu.yaml` on Yellow; Home Assistant publishes `on` to `yellow/<device>/daten/nabu_ring` when the ring lights up |
-| Yellow knows where Nabu stands (left, right, other room) | command `nabu_richtung` with `richtung`; Home Assistant can learn the room from the assistant's Wi‑Fi signal |
-| Timers from the assistant show on Yellow, tapping Yellow while it rings stops the timer | command `timer` (`sekunden` > 0 running, 0 done, < 0 ringing); event `timer_aus` back |
+| Yellow looks at Nabu's LED ring (jealous or curious) | `yellow-nabu.yaml` on Yellow; Home Assistant publishes `on` to `yellow/<device>/data/nabu_ring` when the ring lights up (blueprint *Voice assistant LED ring*) |
+| Yellow knows where Nabu stands (left, right, other room) | command `nabu_direction` with `direction` (left, right, up = other room); Home Assistant can learn the room from the assistant's Wi‑Fi signal |
+| Timers from the assistant show on Yellow, tapping Yellow while it rings stops the timer | command `timer` (`seconds` > 0 running, 0 done, < 0 ringing); event `timer_off` back |
 | "Tell Yellow …" / love letters / questions / games by voice | Home Assistant scripts exposed to Assist call the MQTT commands |
-| Banter: Nabu says a line, Yellow holds up a reply (LLM writes both) | Home Assistant script + `nachricht`; a friendship value changes the tone |
-| Visits: Yellow walks out of his picture and appears on Nabu's OLED as pixel art, or a mini Nabu walks through Yellow's screen | gesture `besuch` / `nabu_kommt` plus the assistant's display |
-| Nabu greets when it comes back online | gesture `winken` |
+| Banter: Nabu says a line, Yellow holds up a reply (LLM writes both) | Home Assistant script + `message`; a friendship value changes the tone |
+| Visits: Yellow walks out of his picture and appears on Nabu's OLED as pixel art, or a mini Nabu walks through Yellow's screen | gesture `visit_nabu` / `nabu_visits` plus the assistant's display |
+| Nabu greets when it comes back online | gesture `wave` |
 
 ## Setup tips
 

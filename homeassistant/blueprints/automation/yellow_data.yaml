@@ -1,0 +1,143 @@
+blueprint:
+  name: Yellow – send data (weather, alarm, appointment, climate)
+  description: >-
+    Sends the data Yellow shows in his clock view and weather to `yellow/<device>/data/…` (retained): weather text and
+    condition from a weather entity (today, from 14:00 tomorrow), next alarm, next appointment of the day, a free notice,
+    outdoor and room temperature, room humidity. Runs every 10 minutes, at Home Assistant start and as soon as the
+    device comes online. Leave optional inputs empty to hide that line.
+  domain: automation
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_data.yaml
+  input:
+    device:
+      name: Device
+      description: The `device` substitution of the device (MQTT topics yellow/<device>/…)
+      default: yellow
+      selector:
+        text:
+    language:
+      name: Language
+      description: Language of the words in the rows ("Today", "Alarm" …), like the device's `language`
+      default: en
+      selector:
+        select:
+          options: [en, de]
+    weather:
+      name: Weather
+      selector:
+        entity:
+          domain: weather
+    alarm:
+      name: Next alarm (optional)
+      description: Timestamp sensor, e.g. the phone's next alarm from the mobile app
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          device_class: timestamp
+    calendar:
+      name: Calendar (optional)
+      description: Next appointment of today
+      default: ""
+      selector:
+        entity:
+          domain: calendar
+    notice:
+      name: Notice (optional)
+      description: Any entity whose state is shown as an extra line (e.g. waste collection); "-" or empty hides it
+      default: ""
+      selector:
+        entity:
+    outdoor_temp:
+      name: Outdoor temperature (optional)
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    room_temp:
+      name: Room temperature (optional)
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    room_humidity:
+      name: Room humidity (optional)
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          device_class: humidity
+
+mode: queued
+max: 5
+
+trigger_variables:
+  device: !input device
+
+triggers:
+  - trigger: time_pattern
+    minutes: /10
+  - trigger: homeassistant
+    event: start
+  - trigger: mqtt
+    topic: "yellow/{{ device }}/status"
+    payload: online
+
+variables:
+  language: !input language
+  weather: !input weather
+  alarm: !input alarm
+  calendar: !input calendar
+  notice: !input notice
+  outdoor_temp: !input outdoor_temp
+  room_temp: !input room_temp
+  room_humidity: !input room_humidity
+  words: >-
+    {{ {'de': {'today': 'Heute', 'tomorrow': 'Morgen', 'alarm': 'Wecker'}}.get(language,
+        {'today': 'Today', 'tomorrow': 'Tomorrow', 'alarm': 'Alarm'}) }}
+
+actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: "{{ weather }}"
+    data:
+      type: daily
+    response_variable: forecast
+  - if: "{{ calendar != '' }}"
+    then:
+      - action: calendar.get_events
+        target:
+          entity_id: "{{ calendar }}"
+        data:
+          start_date_time: "{{ now().isoformat() }}"
+          end_date_time: "{{ today_at('23:59').isoformat() }}"
+        response_variable: appointments
+  - variables:
+      days: "{{ forecast[weather].forecast | default([]) }}"
+      day: "{{ days[1] if now().hour >= 14 and days | count > 1 else (days[0] if days else {}) }}"
+      weather_text: >-
+        {% if day %}{{ words.tomorrow if now().hour >= 14 else words.today }}
+        {{ day.templow | default(day.temperature) | round(0) | int }}–{{ day.temperature | round(0) | int }}°{% else %}-{% endif %}
+      events: "{{ (appointments[calendar].events if appointments is defined else []) | default([]) }}"
+      data:
+        weather: "{{ weather_text }}"
+        weather_condition: "{{ day.condition | default('') }}"
+        alarm: >-
+          {% set w = states(alarm) | as_datetime(none) if alarm else none %}
+          {{ words.alarm ~ ' ' ~ as_local(w).strftime('%H:%M') if w and now() < w < now() + timedelta(hours=20) else '-' }}
+        appointment: >-
+          {% set e = events | first if events else none %}
+          {{ (as_local(as_datetime(e.start)).strftime('%H:%M ') if 'T' in e.start else '') ~ e.summary if e else '-' }}
+        notice: "{{ states(notice) if notice and states(notice) not in ['unknown', 'unavailable', ''] else '-' }}"
+        outdoor_temp: "{{ states(outdoor_temp) if outdoor_temp else '' }}"
+        room_temp: "{{ states(room_temp) if room_temp else '' }}"
+        room_humidity: "{{ states(room_humidity) if room_humidity else '' }}"
+  - repeat:
+      for_each: "{{ data | dictsort | rejectattr(1, 'eq', '') | list }}" # do not send empty (unselected) values
+      sequence:
+        - action: mqtt.publish
+          data:
+            topic: "yellow/{{ device }}/data/{{ repeat.item[0] }}"
+            payload: "{{ repeat.item[1] }}"
+            retain: true

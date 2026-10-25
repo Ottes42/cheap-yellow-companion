@@ -1,0 +1,45 @@
+# Yellow – optional package "screenshots": pixel-exact screenshots and GIFs without a camera (for docs and photos).
+# Include only for taking pictures, then leave it out again. Cost: ~60 bytes RAM, ~1 KB flash, no frame buffer –
+# every LVGL flush sends its stripe (RGB565) to yellow/<device>/image/x/y/w/h during the capture.
+# Command: {"action": "image", "seconds": 0} (one picture) or > 0 (sequence). Receiver: tools/screenshot.py
+globals:
+  - id: image_until # until then every LVGL flush sends its pixels to yellow/<device>/image/x/y/w/h (RGB565)
+    type: uint32_t
+    initial_value: "0"
+
+mqtt:
+  on_json_message:
+    - topic: yellow/${device}/command
+      then:
+        - if:
+            condition:
+              lambda: return std::string(x["action"] | "") == "image";
+            then:
+              - script.execute:
+                  id: capture_image
+                  seconds: !lambda return x["seconds"] | 0;
+
+script:
+  - id: capture_image # screenshot (seconds 0) or a sequence for GIFs; receiver: tools/screenshot.py
+    parameters:
+      seconds: int
+    then:
+      - lambda: |-
+          static bool hooked = false;
+          if (!hooked) {  // hook our own flush in front, ESPHome draws as usual afterwards
+            hooked = true;
+            lv_display_set_flush_cb(lv_display_get_default(), [](lv_display_t *d, const lv_area_t *a, uint8_t *px) {
+              if (id(image_until) && (int32_t) (millis() - id(image_until)) < 0 && mqtt::global_mqtt_client->is_connected()) {
+                const int b = a->x2 - a->x1 + 1, h = a->y2 - a->y1 + 1;
+                for (int y = 0; y < h; y += 20) {  // in stripes of 20 rows (≤ 13 KB per message)
+                  const int n = std::min(20, h - y);
+                  char topic[64];
+                  snprintf(topic, sizeof(topic), "yellow/${device}/image/%d/%d/%d/%d", (int) a->x1, (int) (a->y1 + y), b, n);
+                  mqtt::global_mqtt_client->publish(topic, (const char *) px + y * b * 2, b * n * 2);
+                }
+              }
+              esphome::lvgl::LvglComponent::static_flush_cb(d, a, px);
+            });
+          }
+          id(image_until) = millis() + (seconds > 0 ? seconds * 1000 : 4000);  // one picture: 4 s are enough for all stripes
+          lv_obj_invalidate(lv_screen_active());

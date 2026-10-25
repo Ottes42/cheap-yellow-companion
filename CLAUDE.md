@@ -1,18 +1,25 @@
 # Notes for working on this repo (also for AI assistants)
 
-Layout: `esphome/` firmware (packages + `yellow*.h`), `homeassistant/blueprints/` (automation + script),
-`docs/` (gallery, `nabu.md`, media), `tools/` (screenshots, board frame). Ideas and plans are GitHub issues;
+Layout: `esphome/` firmware (packages + `yellow*.h`), `esphome/lang/` (texts per language), `homeassistant/blueprints/`
+(automation + script), `docs/` (English: gallery, `nabu.md`, media), `docs_de/` (German copies), `tools/` (screenshots,
+board frame), `FEATURES.md` (complete feature list, read it first to see what exists). Ideas and plans are GitHub issues;
 the owner's private installation (family automations, servers, devices) is not part of this repo.
 
-- Owner writes German; code comments and on-screen texts are German, README/CHANGELOG English.
+- Owner writes German; everything in the repo is English: code, identifiers, comments, MQTT interface, docs
+  (`README.md`, `docs/`). German copies: `README.de.md`, `docs_de/` (keep them in sync when a doc changes).
+- Every on-screen text lives only in `esphome/lang/<language>.h` (`txt::NAME`) and every entity name or YAML text in
+  `esphome/lang/<language>.yaml` (`${t_name}`); a new text needs an entry in **each** language file. Never compare
+  select options by text (they are translated), use the index. The MQTT interface is not translated.
 - ESPHome + LVGL 9 on an ESP32 **without PSRAM**. RAM is the hard limit: about 95–120 KB free, the largest free block
   ~49–64 KB. Transformed or semi-transparent large objects need an LVGL layer of width × height × 4 bytes in one block;
-  if that does not fit, LVGL waits forever and the task watchdog reboots (see `schild_patzer`). Check
-  `heap_caps_get_largest_free_block` before adding such effects, and watch the telemetry (`frei`, `block`).
-- `yellow.h` holds the class `Figur` and the tick loop; topics live in `yellow_*.h` as out-of-line `Figur::` methods.
-  Nothing touches LVGL before `aufbauen()` (`bereit()`), `on_value` handlers can fire during setup.
-- The device file sets `yellow_pfad` if the repo is not cloned as `cheap-yellow-companion/` next to it
+  if that does not fit, LVGL waits forever and the task watchdog reboots (see `sign_blunder`). Check
+  `heap_caps_get_largest_free_block` before adding such effects, and watch the telemetry (`free`, `block`).
+- `yellow.h` holds the class `Companion` and the tick loop; topics live in `yellow_*.h` as out-of-line `Companion::`
+  methods. Nothing touches LVGL before `build()` (`ready()`), `on_value` handlers can fire during setup.
+- The device file sets `yellow_path` if the repo is not cloned as `cheap-yellow-companion/` next to it
   (ESPHome resolves `includes:` relative to the device file).
+- Two device files with the same node name (e.g. a test build) share one build folder: clean the build files before
+  switching between them, or the old firmware gets flashed again.
 - After flashing, wait until the boot is marked successful (about a minute) before stress-testing; a crash in the first
   minute rolls the OTA back.
 - Touch calibration is per board (`board-cyd.yaml`, `transform`/`calibration`); check raw values with log level DEBUG.
@@ -38,5 +45,5 @@ the owner's private installation (family automations, servers, devices) is not p
 
 ## Screenshots and GIFs
 
-Include `esphome/yellow-bild.yaml` only temporarily, then run `tools/bild.py` (pixel-exact frames over MQTT);
+Include `esphome/yellow-screenshot.yaml` only temporarily, then run `tools/screenshot.py` (pixel-exact frames over MQTT);
 crop/arrange with ImageMagick. Remove the package again afterwards.

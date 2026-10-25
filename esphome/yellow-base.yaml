@@ -1,0 +1,932 @@
+# Settings (can be overridden in the device file): empty = free or set on the device later
+substitutions:
+  person: "" # owner's display name, e.g. for the greeting ("Hello Anna!")
+  companion_name: Yellow # what the character calls itself
+  fixed_character: "" # burn in Okti, Fox or Robot (option text of the chosen language; empty = selectable via "Character")
+  yellow_path: cheap-yellow-companion/esphome # folder of these files, relative to the device file
+  internet_check_url: http://connectivitycheck.gstatic.com/generate_204 # any HTTP answer counts as "internet is there"
+  language: en # on-screen texts and entity names: en or de (lang/<language>.h and .yaml)
+
+packages:
+  lang: !include lang/${language}.yaml # entity names and YAML texts of the language
+
+# Yellow – base (every profile): character (yellow.h), display, touch, sign, clock view, sliders, switches, games.
+# Expects these data sources (IDs) from the profile: ha_time, ha_weather, ha_weather_condition, ha_appointment, ha_alarm,
+# ha_notice, climate_temp, climate_humidity, outdoor_temp, doorbell_event, ha_occasion. Profile "home": yellow-home.yaml (HA).
+
+esphome:
+  includes: # core yellow.h, topics in their own headers (yellow.h includes them)
+    - ${yellow_path}/lang/${language}.h
+    - ${yellow_path}/yellow_data.h
+    - ${yellow_path}/yellow.h
+    - ${yellow_path}/yellow_games.h
+    - ${yellow_path}/yellow_special.h
+    - ${yellow_path}/yellow_decor.h
+    - ${yellow_path}/yellow_body.h
+    - ${yellow_path}/yellow_post.h
+  on_boot:
+    - priority: 200 # LVGL is up: random phrase on the boot screen
+      then:
+        - lambda: |-
+            static const char *const phrase[] = {yellow::txt::BOOT_1, yellow::txt::BOOT_2, yellow::txt::BOOT_3, yellow::txt::BOOT_4,
+                                               yellow::txt::BOOT_5, yellow::txt::BOOT_6, yellow::txt::BOOT_7, yellow::txt::BOOT_8};
+            lv_label_set_text(id(boot_text), phrase[esphome::random_uint32() % 8]);
+    - priority: -100
+      then:
+      - lambda: |-
+          if (!std::string("${fixed_character}").empty()) id(character).publish_state("${fixed_character}");  // fixed at build time
+          yellow::companion.kind((yellow::Kind) id(character).active_index().value_or(0));
+          yellow::companion.mood((int) id(yellow_mood).state);
+          yellow::companion.tension((int) id(yellow_tension).state);
+          yellow::companion.energy((int) id(yellow_energy).state);
+          yellow::companion.decor_font(lv_obj_get_style_text_font(id(decor_template), LV_PART_MAIN));
+          yellow::companion.status_font(lv_obj_get_style_text_font(id(status_template), LV_PART_MAIN));
+          yellow::companion.digit_font(lv_obj_get_style_text_font(id(lbl_clock), LV_PART_MAIN));
+          yellow::companion.build(id(surface), id(sign), id(sign_text));
+          lv_obj_add_flag(id(boot_text), LV_OBJ_FLAG_HIDDEN);
+          wifi::global_wifi_component->set_keep_scan_results(true);  // network list for the Wi-Fi dialog
+          yellow::companion.decor(id(decor_mode).active_index().value_or(0));
+          yellow::companion.remote_sayings(id(sayings_saved).data());
+          // events as JSON to yellow/<device>/event (same way at home and on the go)
+          static auto event = [](const char *type, const std::string &text, const std::string &game, int value) {
+            id(log_activity).execute(game.empty() ? std::string(type) : std::string(type) + " " + game + " " + to_string(value));
+            if (mqtt::global_mqtt_client == nullptr || !mqtt::global_mqtt_client->is_connected()) return;
+            mqtt::global_mqtt_client->publish_json("yellow/${device}/event", [=](JsonObject root) {
+              root["type"] = type;
+              if (!text.empty()) root["text"] = text;
+              if (!game.empty()) { root["game"] = game; root["value"] = value; }
+            });
+          };
+          yellow::companion.timer_off = []() {
+            event("timer_off", "", "", 0);
+          };
+          yellow::companion.woke_up = []() {
+            id(yellow_sleep).publish_state(false);
+            id(log_activity).execute(std::string("woke_up"));
+          };
+          yellow::companion.petted = [](const std::string &sign) {
+            event("petted", sign, "", 0);
+          };
+          yellow::companion.game_over = [](const std::string &game, int value) {
+            event("game", "", game, value);
+          };
+          yellow::companion.answer = [](const std::string &a) {
+            event("answer", a.empty() ? std::string(yellow::txt::NO_ANSWER) : a, "", 0);
+          };
+          yellow::companion.read = [](const std::string &t) {
+            event("read", t, "", 0);
+          };
+          yellow::companion.led = [](uint32_t rgb, float bright) {
+            if (bright <= 0) {
+              auto call = id(status_led).turn_off();
+              call.set_transition_length(600);
+              call.perform();
+              return;
+            }
+            auto call = id(status_led).turn_on();
+            call.set_rgb(((rgb >> 16) & 0xFF) / 255.0f, ((rgb >> 8) & 0xFF) / 255.0f, (rgb & 0xFF) / 255.0f);
+            call.set_brightness(bright);
+            call.set_transition_length(150);
+            call.perform();
+          };
+      - script.execute: view
+      - delay: 1500ms # greeting after boot (not in the dark, Yellow is invisible then)
+      - lambda: |-
+          yellow::companion.gesture("wave");
+          const std::string person = "${person}", companion_name = "${companion_name}";
+          if (person.empty()) yellow::companion.show_sign(yellow::txt::HELLO, 5);
+          else yellow::companion.message(str_sprintf(yellow::txt::GREETING_FMT, person.c_str(), companion_name.c_str()), false, 3);
+
+globals:
+  - id: network_test # command network_test: only show a network level (1 Wi-Fi, 2 MQTT, 3 internet; 0 = real)
+    type: int
+    initial_value: "0"
+  - id: internet_ok # result of the last internet check (only checked while MQTT is disconnected)
+    type: bool
+    initial_value: "true"
+  - id: awake_until
+    type: uint32_t
+    initial_value: "0"
+  - id: night_colors
+    type: int
+    initial_value: "-1"
+  - id: was_on_before # display was already on when tapped (otherwise just wake it)
+    type: bool
+    initial_value: "true"
+  - id: tap_top_right # press on the small clock next to Yellow
+    type: bool
+    initial_value: "false"
+  - id: tap_help # press on the "?" bottom right
+    type: bool
+    initial_value: "false"
+  - id: activity_log # activity log "HH:MM what" until the next telemetry (at most 30 entries)
+    type: std::vector<std::string>
+  - id: sayings_saved # remote sayings list, saved locally for reboots without network
+    type: std::array<char, 600>
+    restore_value: true
+  - id: tap_games # press on the games icon bottom left
+    type: bool
+    initial_value: "false"
+  - id: tap_y # y of the last press (games menu)
+    type: int
+    initial_value: "0"
+  - id: tap_network # press on the network icon left of the "?"
+    type: bool
+    initial_value: "false"
+  - id: clock_until # clock instead of Yellow until then (after tapping the small clock)
+    type: uint32_t
+    initial_value: "0"
+
+switch:
+  - platform: template
+    id: off_at_night
+    name: ${t_off_at_night}
+    icon: mdi:power-sleep
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+  - platform: template
+    id: yellow_sleep # put Yellow to sleep (also by voice via the voice assistant); tapping wakes him
+    name: ${t_sleeps}
+    state_topic: yellow/${device}/switch/yellow_sleeps/state # fixed topic: an umlaut in the German name would give yellow_schl__ft
+    command_topic: yellow/${device}/switch/yellow_sleeps/command
+    icon: mdi:sleep
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: yellow::companion.sleep(true);
+    turn_off_action:
+      - lambda: yellow::companion.sleep(false);
+  - platform: template
+    id: wake_mode # HA switches it on for the sunrise alarm: Yellow may then be visible in the dark too
+    name: ${t_wake_mode}
+    icon: mdi:weather-sunset-up
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    entity_category: config
+    turn_on_action: # the state is set only after the action, so wait briefly
+      - delay: 50ms
+      - script.execute: view
+    turn_off_action:
+      - delay: 50ms
+      - script.execute: view
+  - platform: template
+    id: auto_brightness
+    name: ${t_auto_brightness}
+    icon: mdi:brightness-auto
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+number:
+  - platform: template # Yellow's mood: 0 yellow and happy … 100 red and grumpy (mouth corners down, brows)
+    id: yellow_mood
+    name: ${t_mood}
+    icon: mdi:emoticon-angry-outline
+    min_value: 0
+    max_value: 100
+    step: 5
+    mode: slider
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    on_value:
+      - lambda: yellow::companion.mood((int) x);
+  - platform: template # 0 relaxed … 100 very nervous (pace, blinking, sweat, flinching); HA feeds it automatically
+    id: yellow_tension
+    name: ${t_tension}
+    icon: mdi:heart-pulse
+    min_value: 0
+    max_value: 100
+    step: 5
+    mode: slider
+    optimistic: true
+    restore_value: true
+    initial_value: 20
+    on_value:
+      - lambda: yellow::companion.tension((int) x);
+  - platform: template # 0 dead tired … 100 wide awake (breathing, yawning, boredom); HA feeds it by time of day
+    id: yellow_energy
+    name: ${t_energy}
+    icon: mdi:battery-heart-variant
+    min_value: 0
+    max_value: 100
+    step: 5
+    mode: slider
+    optimistic: true
+    restore_value: true
+    initial_value: 70
+    on_value:
+      - lambda: yellow::companion.energy((int) x);
+
+button:
+  - platform: template
+    name: ${t_play_post}
+    icon: mdi:email-open-outline
+    on_press:
+      - lambda: yellow::companion.play_post();
+  - platform: template
+    name: ${t_reaction}
+    icon: mdi:timer-play-outline
+    on_press:
+      - lambda: yellow::companion.game("reaction");
+  - platform: template
+    name: ${t_ttt}
+    icon: mdi:grid
+    on_press:
+      - lambda: yellow::companion.game("ttt");
+  - platform: template
+    name: ${t_simon}
+    icon: mdi:palette-swatch-outline
+    on_press:
+      - lambda: yellow::companion.game("simon");
+  - platform: template
+    name: ${t_cancel_question}
+    icon: mdi:comment-remove-outline
+    on_press:
+      - lambda: yellow::companion.cancel_question();
+  - platform: template
+    name: ${t_clear_post}
+    icon: mdi:email-remove-outline
+    on_press:
+      - lambda: yellow::companion.clear_post();
+
+select:
+  - platform: template
+    id: view_mode
+    name: ${t_view}
+    icon: mdi:emoticon-happy-outline
+    options: [Auto, Yellow, "${t_opt_clock}"]
+    initial_option: Auto
+    optimistic: true
+    restore_value: false # always Auto after a reboot (crash protection while testing)
+    entity_category: config
+    on_value:
+      - script.execute: view
+  - platform: template
+    id: decor_mode
+    name: ${t_decor}
+    icon: mdi:pine-tree
+    options: [Auto, "${t_opt_off}", Halloween, "${t_opt_christmas}"]
+    initial_option: Auto
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    on_value:
+      - lambda: 'yellow::companion.decor(i);'
+  - platform: template
+    id: character
+    name: ${t_character}
+    icon: mdi:paw
+    options: [Okti, "${t_opt_robot}", "${t_opt_fox}"]
+    initial_option: Okti
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    on_value:
+      - lambda: 'yellow::companion.kind((yellow::Kind) i);'
+
+script:
+  - id: draw_rows # info rows of the clock (alarm, appointment, notice) from the profile's data sources
+    then:
+      - lambda: |-
+          auto row = [](lv_obj_t *l, const std::string &x, const char *sym) {
+            if (x.empty() || x == "-" || x == "unknown" || x == "unavailable") {
+              lv_obj_add_flag(l, LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_label_set_text(l, (std::string(sym) + "  " + x).c_str());
+              lv_obj_clear_flag(l, LV_OBJ_FLAG_HIDDEN);
+            }
+          };
+          row(id(z_alarm), id(ha_alarm).state, "\U000F0020");
+          row(id(z_appointment), id(ha_appointment).state, "\U000F00ED");
+          row(id(z_notice), id(ha_notice).state, "\U000F0A79");
+  - id: draw_clock
+    then:
+      - lambda: |-
+          auto t = id(ha_time).now();
+          if (!t.is_valid()) return;
+          bool night_now = t.hour >= 21 || t.hour < 7;
+          uint32_t off = night_now ? ${color_night_2} : ${color_day_2}; // colon blinks every second
+          if (t.second % 2) lv_label_set_text(id(lbl_clock), str_sprintf("%02d#%06X :#%02d", t.hour, (unsigned) off, t.minute).c_str());
+          else lv_label_set_text(id(lbl_clock), str_sprintf("%02d:%02d", t.hour, t.minute).c_str());
+          lv_label_set_text(id(lbl_date), str_sprintf(yellow::txt::DATE_FMT, yellow::txt::DAYS[t.day_of_week - 1], t.day_of_month, yellow::txt::MONTHS[t.month - 1]).c_str());
+          yellow::companion.clock(t.hour, t.minute);
+          yellow::companion.season(t.month, t.day_of_month);
+          int night = (t.hour >= 21 || t.hour < 7) ? 1 : 0;
+          if (night != id(night_colors)) {
+            id(night_colors) = night;
+            lv_color_t c1 = lv_color_hex(night ? ${color_night} : ${color_day});
+            lv_color_t c2 = lv_color_hex(night ? ${color_night_2} : ${color_day_2});
+            lv_obj_set_style_text_color(id(lbl_clock), c1, 0);
+            lv_obj_set_style_text_color(id(rows), c1, 0);
+            lv_obj_set_style_text_color(id(lbl_date), c2, 0);
+            lv_obj_set_style_text_color(id(z_climate), c2, 0);
+          }
+  - id: draw_weather
+    then:
+      - lambda: |-
+          const std::string &x = id(ha_weather).state, &c = id(ha_weather_condition).state;
+          yellow::companion.weather(c);
+          if (x.empty() || x == "-" || x == "unknown" || x == "unavailable") {
+            lv_obj_add_flag(id(z_weather), LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+          const char *sym = "\U000F0590";
+          if (c == "sunny") sym = "\U000F0599";
+          else if (c == "clear-night") sym = "\U000F0594";
+          else if (c == "partlycloudy") sym = "\U000F0595";
+          else if (c == "rainy") sym = "\U000F0597";
+          else if (c == "pouring") sym = "\U000F0596";
+          else if (c == "snowy") sym = "\U000F0598";
+          else if (c == "snowy-rainy") sym = "\U000F067F";
+          else if (c == "lightning") sym = "\U000F0593";
+          else if (c == "lightning-rainy") sym = "\U000F067E";
+          else if (c == "fog") sym = "\U000F0591";
+          else if (c == "hail") sym = "\U000F0592";
+          else if (c == "windy" || c == "windy-variant") sym = "\U000F059D";
+          lv_label_set_text(id(z_weather), (std::string(sym) + "  " + x).c_str());
+          lv_obj_clear_flag(id(z_weather), LV_OBJ_FLAG_HIDDEN);
+  - id: draw_climate
+    then:
+      - lambda: |-
+          float t = id(climate_temp).state, h = id(climate_humidity).state;
+          if (std::isnan(t)) return;
+          std::string s = str_sprintf("\U000F0F54 %.1f°", t);
+          if (!std::isnan(h)) s += str_sprintf(" %.0f%%", h);
+          float a = id(outdoor_temp).state; // measured; the forecast is in the weather row
+          if (!std::isnan(a)) s += str_sprintf("  \U000F18D7 %.0f°", a);
+          if (yellow::txt::DECIMAL_COMMA) for (auto &ch : s) if (ch == '.') ch = ',';
+          lv_label_set_text(id(z_climate), s.c_str());
+  - id: log_activity
+    mode: queued
+    parameters:
+      what: string
+    then:
+      - lambda: |-
+          auto &p = id(activity_log);
+          auto t = id(ha_time).now();
+          p.push_back((t.is_valid() ? t.strftime("%H:%M ") : std::string("--:-- ")) + what);
+          if (p.size() > 30) p.erase(p.begin());
+  - id: open_wifi # Wi-Fi dialog (tap on the red network icon): networks from the last scan, strongest first
+    then:
+      - lambda: |-
+          std::vector<std::pair<int, std::string>> networks;
+          for (auto &r : wifi::global_wifi_component->get_scan_result()) {
+            std::string s(r.get_ssid().c_str(), r.get_ssid().size());
+            bool fresh = !s.empty();
+            for (auto &n : networks) if (n.second == s) fresh = false;
+            if (fresh) networks.push_back({r.get_rssi(), s});
+          }
+          std::sort(networks.begin(), networks.end(), [](const auto &a, const auto &b) { return a.first > b.first; });
+          std::string opt;
+          for (auto &n : networks) opt += (opt.empty() ? "" : "\n") + n.second;
+          lv_dropdown_set_options(id(wifi_list)->obj, opt.empty() ? yellow::txt::NO_WIFI_FOUND : opt.c_str());
+          lv_textarea_set_text(id(wifi_password_box), "");
+      - lvgl.page.show: wifi_page
+      - script.execute: wake_display
+  - id: connect_wifi # OK on the keyboard: save network + password, ESPHome reconnects
+    then:
+      - lambda: |-
+          char ssid[65];
+          lv_dropdown_get_selected_str(id(wifi_list)->obj, ssid, sizeof(ssid));
+          if (wifi::global_wifi_component->get_scan_result().empty()) return;
+          wifi::global_wifi_component->save_wifi_sta(std::string(ssid), std::string(lv_textarea_get_text(id(wifi_password_box))));
+          yellow::companion.message(str_sprintf(yellow::txt::TRYING_WIFI_FMT, ssid), false, 3);
+      - lvgl.page.show: main_page
+  - id: wake_display
+    then:
+      - lambda: id(awake_until) = millis() + 30000;
+      - script.execute: brightness
+  - id: view # Yellow or clock, every 3 s and on changes
+    then:
+      - lambda: |-
+          if (!yellow::companion.ready()) return; // selects fire before LVGL is up (boot loop 2026-10-24)
+          float v = id(ldr).state;
+          bool dark = !std::isnan(v) && v >= ${ldr_dark};
+          const size_t m = id(view_mode).active_index().value_or(0);
+          // Auto and Yellow: Yellow as soon as there is light; never in the dark (then only the dim clock when tapped)
+          bool yellow = (!dark || id(wake_mode).state) && m != 2;
+          if (id(clock_until) != 0) {
+            if ((int32_t) (millis() - id(clock_until)) < 0) yellow = false;
+            else id(clock_until) = 0;
+          }
+          if (yellow) lv_obj_add_flag(id(clock_view), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_clear_flag(id(clock_view), LV_OBJ_FLAG_HIDDEN);
+          yellow::companion.visible(yellow);
+          static bool was_dark = false;  // light goes on → Yellow gets a fright
+          if (was_dark && !dark && yellow) yellow::companion.light_scare();
+          if (!std::isnan(v)) was_dark = dark;
+  - id: show_panel # show the panel briefly for help/confirmation, hides itself
+    mode: restart
+    parameters:
+      seconds: int
+    then:
+      - lvgl.widget.hide: rows
+      - lvgl.widget.show: assist
+      - delay: !lambda return seconds * 1000;
+      - lvgl.widget.hide: assist
+      - lvgl.widget.show: rows
+  - id: brightness
+    then:
+      - lambda: |-
+          if (!id(auto_brightness).state) return;
+          float v = id(ldr).state;
+          bool dark = !std::isnan(v) && v >= ${ldr_dark};
+          bool awake = millis() < id(awake_until);
+          float target; // off in the dark; when tapped only the clock, very dim
+          if (dark) target = (awake || !id(off_at_night).state) ? 0.05f : 0.0f;
+          else target = awake ? 0.8f : 0.7f;
+          float actual = id(backlight).current_values.is_on() ? id(backlight).current_values.get_brightness() : 0.0f;
+          if (fabsf(actual - target) < 0.04f) return;
+          if (target <= 0.0f) {
+            id(backlight).turn_off().perform();
+          } else {
+            auto call = id(backlight).turn_on();
+            call.set_brightness(target);
+            call.perform();
+          }
+
+http_request:
+  follow_redirects: false # a redirect (e.g. 301 to https) is enough as a sign of life
+  timeout: 5s
+
+interval:
+  - interval: 5s # network status: red without Wi-Fi, orange without MQTT (the text says whether the internet is missing)
+    then:
+      - lambda: |-
+          if (!yellow::companion.ready()) return;
+          static std::string last;  // last connected network (not sent, only the name as a sensor)
+          static uint32_t mqtt_lost_since = 0;
+          const bool wifi_ok = wifi::global_wifi_component->is_connected();
+          const bool mqtt_ok = mqtt::global_mqtt_client != nullptr && mqtt::global_mqtt_client->is_connected();
+          if (wifi_ok && !id(wifi_name).state.empty() && id(wifi_name).state != last) {
+            if (!last.empty()) id(log_activity).execute("wifi " + id(wifi_name).state);
+            last = id(wifi_name).state;
+          }
+          if (mqtt_ok || !wifi_ok) mqtt_lost_since = 0;
+          else if (mqtt_lost_since == 0) mqtt_lost_since = millis();
+          // orange only after 30 s so a short reconnect does not blink
+          const bool mqtt_lost = mqtt_lost_since != 0 && millis() - mqtt_lost_since > 30000;
+          int level = !wifi_ok ? 1 : !mqtt_lost ? 0 : id(internet_ok) ? 2 : 3;
+          yellow::companion.network(id(network_test) ? id(network_test) : level, last);
+  - interval: 10s # the Wi-Fi dialog closes 5 min after the last touch (owner's wish)
+    then:
+      - if:
+          condition:
+            lambda: return lv_scr_act() == id(wifi_page)->obj && (int32_t) (millis() - id(awake_until)) > 270000;  // awake_until = touch + 30 s
+          then:
+            - lvgl.page.show: main_page
+  - interval: 60s # internet check only while MQTT is missing: any HTTP answer from the server (even 301) counts
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return wifi::global_wifi_component->is_connected() &&
+                     !(mqtt::global_mqtt_client != nullptr && mqtt::global_mqtt_client->is_connected());
+          then:
+            - http_request.get:
+                url: ${internet_check_url}
+                capture_response: false
+                on_response:
+                  then:
+                    - lambda: id(internet_ok) = true;
+                on_error:
+                  then:
+                    - lambda: id(internet_ok) = false;
+  - interval: 3s
+    then:
+      - script.execute: brightness
+      - script.execute: view
+  - interval: 50ms
+    then:
+      - lambda: yellow::companion.tick();
+
+# Daytime: Inter, with symbols from Material Design Icons (same font for text and symbols)
+
+font:
+  - file: "gfonts://Inter@600"
+    id: font_clock
+    size: 76
+    glyphs: "0123456789:-"
+  - file: "gfonts://Inter@500"
+    id: font_text
+    size: 18
+    glyphsets: [GF_Latin_Core]
+    extras:
+      - file:
+          type: web
+          url: https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/master/fonts/materialdesignicons-webfont.ttf
+        glyphs:
+          - "\U000F0020" # alarm
+          - "\U000F009E" # bell-ring
+          - "\U000F00ED" # calendar
+          - "\U000F0A79" # trash-can
+          - "\U000F0F54" # home-thermometer
+          - "\U000F18D7" # sun-thermometer-outline (outdoor)
+          - "\U000F036C" # microphone
+          - "\U000F06A9" # robot
+          - "\U000F0594" # weather-night
+          - "\U000F0590" # weather-cloudy
+          - "\U000F0591" # weather-fog
+          - "\U000F0592" # weather-hail
+          - "\U000F0593" # weather-lightning
+          - "\U000F0595" # weather-partly-cloudy
+          - "\U000F0596" # weather-pouring
+          - "\U000F0597" # weather-rainy
+          - "\U000F0598" # weather-snowy
+          - "\U000F0599" # weather-sunny
+          - "\U000F059D" # weather-windy
+          - "\U000F067E" # weather-lightning-rainy
+          - "\U000F067F" # weather-snowy-rainy
+
+  - file: "gfonts://Patrick Hand" # Yellow's signs: handwriting
+    id: font_sign
+    size: 28
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+
+  - file: # small symbols for the status line (taps, pets, games, fist bumps)
+      type: web
+      url: https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/master/fonts/materialdesignicons-webfont.ttf
+    id: font_status
+    size: 16
+    bpp: 4
+    glyphs: ["\U000F0741", "\U000F10F1", "\U000F0297", "\U000F0FD7", "\U000F05AA", "\U000F0164", "\U000F0A8E"]
+  - file: # decoration symbols for holidays/seasons (Material Design Icons), see DECO_SETS in yellow_data.h
+      type: web
+      url: https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/master/fonts/materialdesignicons-webfont.ttf
+    id: font_decor
+    size: 30
+    bpp: 4
+    glyphs:
+          - "\U000F02D1"
+          - "\U000F0AB0"
+          - "\U000F0907"
+          - "\U000F0E30"
+          - "\U000F1056"
+          - "\U000F00EB"
+          - "\U000F05E2"
+          - "\U000F04CE"
+          - "\U000F0717"
+          - "\U000F024A"
+          - "\U000F09F1"
+          - "\U000F0A26"
+          - "\U000F032A"
+          - "\U000F0C93"
+          - "\U000F07A6"
+          - "\U000F04E5"
+          - "\U000F0BC6"
+          - "\U000F0A08"
+          - "\U000F03FF"
+          - "\U000F0D02"
+          - "\U000F0B47"
+          - "\U000F06B5"
+          - "\U000F0E44"
+          - "\U000F0599"
+          - "\U000F188A"
+          - "\U000F0356"
+          - "\U000F01A5"
+          - "\U000F0BA4"
+          - "\U000F0463"
+          - "\U000F08D8"
+          - "\U000F07DF"
+          - "\U000F0FA1"
+          - "\U000F1589"
+          - "\U000F1116"
+          - "\U000F0387"
+          - "\U000F089A"
+          - "\U000F0405"
+          - "\U000F0098"
+          - "\U000F00E4"
+          - "\U000F0110"
+          - "\U000F011B"
+          - "\U000F0150"
+          - "\U000F0169"
+          - "\U000F0176"
+          - "\U000F018D"
+          - "\U000F0241"
+          - "\U000F025D"
+          - "\U000F02A0"
+          - "\U000F02DF"
+          - "\U000F03E9"
+          - "\U000F0594"
+          - "\U000F068B"
+          - "\U000F068C"
+          - "\U000F07AC"
+          - "\U000F07B8"
+          - "\U000F07EB"
+          - "\U000F0892"
+          - "\U000F0BBF"
+          - "\U000F0BC9"
+          - "\U000F0CE3"
+          - "\U000F0D7C"
+          - "\U000F0F62"
+          - "\U000F1314"
+          - "\U000F14DE"
+          - "\U000F1562"
+          - "\U000F1741"
+          - "\U000F17FE"
+          - "\U000F01F7"
+          - "\U000F01F9"
+          - "\U000F02A6"
+          - "\U000F0C6B"
+          - "\U000F0C70"
+          - "\U000F0C71"
+          - "\U000F0C72"
+          - "\U000F0C78"
+          - "\U000F1214"
+
+lvgl:
+  displays: [tft]
+  rotation: ${rotation}
+  touchscreens:
+    - touchscreen_id: touch
+      long_press_time: 1200ms
+  buffer_size: 25%
+  default_font: font_text
+  pages:
+    - id: main_page
+      bg_color: 0x000000
+      scrollable: false
+      widgets:
+        - label: # boot screen until the character is there (no clock picture first); random text at boot
+            id: boot_text
+            align: CENTER
+            text: "${t_boot}"
+            text_color: 0x8A93A6
+        - obj: # surface for taps / long press, everything else lies inside (yellow.h builds Yellow in here)
+            id: surface
+            width: 100%
+            height: 100%
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            scrollable: false
+            on_press:
+              - lambda: |-
+                  id(was_on_before) = id(backlight).current_values.is_on();
+                  lv_point_t p;
+                  lv_indev_get_point(lv_indev_get_act(), &p);
+                  id(tap_top_right) = p.x > 240 && p.y < 44;
+                  id(tap_help) = p.x > 284 && p.y > 200;
+                  id(tap_network) = p.x > 262 && p.x <= 284 && p.y > 200;
+                  id(tap_games) = p.x < 30 && p.y > 200;
+                  id(tap_y) = p.y;
+              - script.execute: wake_display
+            on_long_press: # hold Yellow → the clock's info as signs
+              - if:
+                  condition:
+                    lambda: return yellow::companion.is_visible() && !yellow::companion.petting() && !yellow::companion.help_open();
+                  then:
+                    - lambda: |-
+                        auto good = [](const std::string &x) { return !x.empty() && x != "-" && x != "unknown" && x != "unavailable"; };
+                        std::string t;
+                        if (good(id(ha_alarm).state)) t += id(ha_alarm).state + "\n";
+                        if (good(id(ha_appointment).state)) t += id(ha_appointment).state + "\n";
+                        if (good(id(ha_weather).state)) t += id(ha_weather).state + "\n";
+                        if (good(id(ha_notice).state)) t += id(ha_notice).state + "\n";
+                        float k = id(climate_temp).state;
+                        if (!std::isnan(k)) {
+                          std::string z = str_sprintf(yellow::txt::HERE_TEMP, k);
+                          if (yellow::txt::DECIMAL_COMMA) for (auto &ch : z) if (ch == '.') ch = ',';
+                          t += z;
+                        }
+                        yellow::companion.message(t.empty() ? std::string(yellow::txt::NOTHING_TODAY) : t, false, 3);
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: return id(was_on_before) && !yellow::companion.petting() && yellow::companion.is_visible();
+                  then:
+                    - lambda: |-
+                        // "?" opens the help, any tap closes it; small clock → 15 s clock (owner); otherwise poke
+                        if (yellow::companion.games_open()) {
+                          yellow::companion.games_tap(id(tap_y));
+                        } else if (id(tap_network) && yellow::companion.network_level() == 1) {
+                          id(open_wifi).execute();
+                        } else if (yellow::companion.help_open() || id(tap_help)) {
+                          yellow::companion.help(!yellow::companion.help_open());
+                        } else if (id(tap_games)) {
+                          yellow::companion.games_menu(true);
+                        } else if (id(tap_top_right)) {
+                          id(clock_until) = millis() + 15000;
+                          id(view).execute();
+                        } else {
+                          yellow::companion.poke();
+                        }
+            widgets:
+              - obj: # clock view (landscape 320×240)
+                  id: clock_view
+                  width: 100%
+                  height: 100%
+                  hidden: true # only the view logic shows the clock (at boot Yellow greets)
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  clickable: false
+                  scrollable: false
+                  widgets:
+                    - label:
+                        id: lbl_clock
+                        align: TOP_MID
+                        y: 2
+                        text: "--:--"
+                        recolor: true
+                        text_font: font_clock
+                        text_color: ${color_day}
+                    - label:
+                        id: lbl_date
+                        x: 10
+                        y: 90
+                        width: 104
+                        long_mode: DOT
+                        text: ""
+                        text_color: ${color_day_2}
+                    - label:
+                        id: z_climate
+                        align: TOP_RIGHT
+                        x: -10
+                        y: 90
+                        width: 200
+                        long_mode: DOT
+                        text_align: RIGHT
+                        text: ""
+                        text_color: ${color_day_2}
+                    - obj: # info rows
+                        id: rows
+                        x: 14
+                        y: 124
+                        width: 292
+                        height: 112
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        clickable: false
+                        scrollable: false
+                        text_color: ${color_day}
+                        layout:
+                          type: FLEX
+                          flex_flow: COLUMN
+                          pad_row: 6
+                        widgets:
+                          - label: { id: z_alarm, width: 100%, long_mode: DOT, text: "", hidden: true }
+                          - label: { id: z_appointment, width: 100%, long_mode: DOT, text: "", hidden: true }
+                          - label: { id: z_weather, width: 100%, long_mode: DOT, text: "", hidden: true }
+                          - label: { id: z_notice, width: 100%, long_mode: DOT, text: "", hidden: true, text_color: 0xFF6B3D }
+              - obj: # assist: what was said and what comes back
+                  id: assist
+                  x: 8
+                  y: 118
+                  width: 304
+                  height: 116
+                  hidden: true
+                  clickable: false
+                  scrollable: false
+                  bg_color: 0x0E1622
+                  border_width: 0
+                  radius: 12
+                  pad_all: 10
+                  layout:
+                    type: FLEX
+                    flex_flow: COLUMN
+                    pad_row: 6
+                  widgets:
+                    - label:
+                        id: lbl_in
+                        width: 100%
+                        long_mode: DOT
+                        max_height: 24
+                        text: ""
+                        text_color: 0xE8E8E8
+                    - label:
+                        id: lbl_out
+                        width: 100%
+                        long_mode: DOT
+                        max_height: 66
+                        text: ""
+                        text_color: 0x7FB8FF
+              - obj: # Yellow's cardboard sign, yellow.h slides it in from the top
+                  id: sign
+                  x: 60
+                  y: -100
+                  width: 200
+                  height: 80
+                  hidden: true
+                  clickable: false
+                  scrollable: false
+                  bg_color: 0xF4E4C1
+                  border_width: 3
+                  border_color: 0x8B6B3E
+                  radius: 6
+                  pad_all: 4
+                  widgets:
+                    - label:
+                        id: sign_text
+                        align: CENTER
+                        width: 100%
+                        long_mode: WRAP
+                        text_align: CENTER
+                        text_font: font_sign
+                        text_color: 0x3A2A18
+                        text: ""
+              - arc: # only so LVGL builds arcs (eyes and mouth in yellow.h)
+                  id: arc_template
+                  hidden: true
+                  clickable: false
+              - label: # only carries the decoration font so yellow.h gets it
+                  id: decor_template
+                  hidden: true
+                  text: ""
+                  text_font: font_decor
+              - label: # only carries the status line symbols
+                  id: status_template
+                  hidden: true
+                  text: ""
+                  text_font: font_status
+              - line: # only so LVGL builds lines (Okti's arms in yellow.h)
+                  id: line_template
+                  hidden: true
+                  points:
+                    - 0, 0
+                    - 1, 1
+    - id: wifi_page # Wi-Fi dialog: pick a network, type the password, OK
+      bg_color: 0x000000
+      scrollable: false
+      widgets:
+        - dropdown:
+            id: wifi_list
+            x: 4
+            y: 4
+            width: 220
+            options: ["-"]
+            on_press:
+              - script.execute: wake_display
+            indicator:
+              text_font: montserrat_14
+        - button:
+            x: 230
+            y: 4
+            width: 86
+            height: 40
+            on_click:
+              - lvgl.page.show: main_page
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "${t_back}"
+        - textarea:
+            id: wifi_password_box
+            x: 4
+            y: 50
+            width: 312
+            one_line: true
+            placeholder_text: "${t_password}"
+            on_ready:
+              - script.execute: connect_wifi
+        - keyboard:
+            id: wifi_keyboard
+            textarea: wifi_password_box
+            align: BOTTOM_MID
+            height: 140
+            on_press:
+              - script.execute: wake_display
+            items:
+              text_font: montserrat_14
+
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      id: wifi_name
+      name: ${t_wifi}
+      icon: mdi:wifi
+  - platform: template
+    name: ${t_today} # daily counts taps|pets|games|fist (for the daily summary in HA)
+    icon: mdi:counter
+    update_interval: 60s
+    lambda: return yellow::companion.counts_text();
+  # info rows: "-" or empty hides the row
+
+sensor:
+  - platform: template
+    name: ${t_waiting}
+    icon: mdi:email-alert-outline
+    accuracy_decimals: 0
+    update_interval: 2s
+    lambda: return yellow::companion.waiting();
+    filters:
+      - delta: 0.5
+  - platform: debug # watch the memory (because of the hangs)
+    free:
+      name: ${t_free_mem}
+      entity_category: diagnostic
+    block:
+      name: ${t_largest_block}
+      state_topic: yellow/${device}/sensor/largest_free_block/state # fixed topic: the umlaut in the German name would give gr____ter_…
+      entity_category: diagnostic
+
+binary_sensor:
+  - platform: template
+    id: yellow_visible
+    name: ${t_visible}
+    icon: mdi:emoticon-happy-outline
+    lambda: return yellow::companion.is_visible();

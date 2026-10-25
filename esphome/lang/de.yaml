@@ -1,0 +1,37 @@
+# Yellow: entity names and YAML texts, German (substitution language: de). Every key needs an entry in each language.
+# Changing the language changes the entity IDs in Home Assistant (they are made from the names).
+substitutions:
+  t_off_at_night: Nachts aus
+  t_sleeps: Yellow schläft
+  t_wake_mode: Weckmodus
+  t_auto_brightness: Auto-Helligkeit
+  t_mood: Yellow Stimmung
+  t_tension: Yellow Anspannung
+  t_energy: Yellow Energie
+  t_play_post: Yellow Post abspielen
+  t_reaction: Yellow Reaktionstest
+  t_ttt: Yellow Tic-Tac-Toe
+  t_simon: Yellow Simon Says
+  t_cancel_question: Yellow Frage abbrechen
+  t_clear_post: Yellow Post leeren
+  t_view: Ansicht
+  t_decor: Deko
+  t_character: Figur
+  t_wifi: WLAN
+  t_today: Yellow heute
+  t_waiting: Yellow Nachrichten wartend
+  t_free_mem: Freier Speicher
+  t_largest_block: Größter freier Block
+  t_visible: Yellow sichtbar
+  t_display: Display
+  t_status_led: Status-LED
+  t_ambient_light: Umgebungslicht
+  t_opt_clock: Uhr
+  t_opt_off: Aus
+  t_opt_christmas: Weihnachten
+  t_opt_robot: Roboter
+  t_opt_fox: Fuchs
+  t_boot: Moment bitte …
+  t_back: Zurück
+  t_password: Passwort, dann OK
+  t_doorbell: Es klingelt

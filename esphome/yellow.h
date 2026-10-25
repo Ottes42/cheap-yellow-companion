@@ -1,522 +1,522 @@
 #pragma once
-// Yellow: kleine stumme Figur fürs CYD (LVGL 9, Querformat 320×240), Plan in docs/yellow.md.
-// Baut sich als Kind eines LVGL-Objekts auf (das auch die Touch-Ereignisse bekommt) und bewegt
-// sich nur mit lv_anim und Linien-Punkten, ohne Bitmaps. Zwei Figuren: Okti (Wende-Oktopus,
-// gelb/froh oder rot/grummelig, 8 Arme) oder Roboter.
-// Bausteine: Formen, Bögen, Linien. Alles, was LVGL anfasst, erst nach aufbauen() (siehe bereit()).
-// Das Schild (Objekt + Label mit eigener Schrift) kommt aus dem YAML, weil die Schriften dort definiert sind.
+// Yellow: small mute character for the CYD (LVGL 9, landscape 320×240).
+// Builds itself as a child of an LVGL object (which also gets the touch events) and moves
+// only with lv_anim and line points, without bitmaps. Three characters: Okti (reversible octopus,
+// yellow/happy or red/grumpy, 8 arms), Robot and Fox.
+// Building blocks: shapes, arcs, lines. Anything that touches LVGL only after build() (see ready()).
+// The sign (object + label with its own font) comes from the YAML because the fonts are defined there.
 
-#include "yellow_daten.h"
+#include "yellow_data.h"
 
 namespace yellow {
 
-class Figur {
+class Companion {
  public:
-  // LED am Rücken: Farbe 0xRRGGBB, Helligkeit 0..1 (0 = aus)
+  // LED on the back: color 0xRRGGBB, brightness 0..1 (0 = off)
   std::function<void(uint32_t, float)> led;
-  // Nachricht wurde nach Antippen gezeigt (Text), für das Ereignis „gelesen“ in HA
-  std::function<void(const std::string &)> gelesen;
-  // Yellow wurde angetippt, während ein Timer klingelt (HA stoppt dann Nabus Timer)
-  std::function<void()> timer_aus;
-  // Yellow wurde durch Antippen geweckt (YAML setzt dann den Schalter „Yellow schläft“ zurück)
-  std::function<void()> aufgewacht;
-  // Yellow wurde gestreichelt; Text des Schilds, wenn eins in den letzten 15 s zu sehen war (= Lieblingsspruch)
-  std::function<void(const std::string &)> gestreichelt;
+  // a message was shown after a tap (text), for the event "read" in HA
+  std::function<void(const std::string &)> read;
+  // Yellow was tapped while a timer rings (HA then stops the voice assistant's timer)
+  std::function<void()> timer_off;
+  // Yellow was woken by a tap (the YAML then resets the switch "Yellow sleeps")
+  std::function<void()> woke_up;
+  // Yellow was petted; text of the sign if one was visible in the last 15 s (= favourite saying)
+  std::function<void(const std::string &)> petted;
 
-  // Schmuck (Bling-Bling, kombinierbar mit Hut/Krone): goldene Kette mit funkelndem Anhänger, Fuchs mit Ohrsteckern
-  void schmuck(bool an) {
-    schmuck_an_ = an;
-    if (schmuck_ == nullptr) return;
-    zeigen(schmuck_, an);
-    for (auto *o : ohrstecker_) zeigen(o, an);
+  // Jewelry (bling, combines with hat/crown): golden chain with a sparkling pendant, fox with earrings
+  void jewelry(bool on) {
+    jewelry_on_ = on;
+    if (jewelry_ == nullptr) return;
+    show(jewelry_, on);
+    for (auto *o : earrings_) show(o, on);
   }
-  // Accessoire, wenn kein Anlass-Hut aktiv ist: hut, krone, stern, blume, keins
-  void accessoire(const std::string &name) {
-    accessoire_ = name == "hut" ? "\U000F0BA4" : name == "krone" ? "\U000F01A5" : name == "stern" ? "\U000F04CE"
-                : name == "blume" ? "\U000F024A" : "";
-    accessoire_farbe_ = name == "hut" ? 0x2A2A36 : name == "krone" ? 0xFFD23F : name == "stern" ? 0xFFE08A : 0xFF8FA3;
-    hut();
+  // Accessory when no occasion hat is active: hat, crown, star, flower, none
+  void accessory(const std::string &name) {
+    accessory_ = name == "hat" ? "\U000F0BA4" : name == "crown" ? "\U000F01A5" : name == "star" ? "\U000F04CE"
+                : name == "flower" ? "\U000F024A" : "";
+    accessory_color_ = name == "hat" ? 0x2A2A36 : name == "crown" ? 0xFFD23F : name == "star" ? 0xFFE08A : 0xFF8FA3;
+    hat();
   }
-  // Antwort auf eine Frage (Text der gewählten Option, leer = keine Antwort in der Zeit)
-  std::function<void(const std::string &)> antwort;
-  // Spiel zu Ende: spiel (reaktion, ttt), wert (ms bzw. 1 gewonnen / 0 unentschieden / -1 verloren / -2 abgebrochen)
-  std::function<void(const std::string &, int)> spiel_ende;
+  // answer to a question (text of the chosen option, empty = no answer in time)
+  std::function<void(const std::string &)> answer;
+  // game over: game (reaction, ttt, simon), value (ms, or 1 won / 0 draw / -1 lost / -2 aborted)
+  std::function<void(const std::string &, int)> game_over;
 
-  bool spiel(const std::string &name);
+  bool game(const std::string &name);
 
-  // Frage mit zwei Antwortfeldern unten (optionen „Ja|Nein“). Wartet, bis Yellow sichtbar ist; nach 10 min ohne Antwort weg.
-  void frage(const std::string &text, const std::string &optionen);
+  // Question with two answer fields at the bottom (options "Yes|No"). Waits until Yellow is visible; gone after 10 min without an answer.
+  void question(const std::string &text, const std::string &options);
 
-  // Timer von Nabu: sek > 0 läuft (Rest in Sekunden), 0 = vorbei/abgebrochen, < 0 = klingelt jetzt
-  void timer(int sek, const std::string &name) {
-    uint32_t jetzt = esphome::millis();
+  // Timer from the voice assistant: sec > 0 running (seconds left), 0 = over/cancelled, < 0 = ringing now
+  void timer(int sec, const std::string &name) {
+    uint32_t now_ms = esphome::millis();
     timer_name_ = name;
-    if (sek > 0) {
-      bool neu = timer_ende_ == 0;
-      timer_ende_ = jetzt + (uint32_t) sek * 1000;
-      timer_klingelt_ = false;
-      timer_zahl_ = -1;
-      naechste_timer_info_ = jetzt + 90000;
-      if (neu && sichtbar_) {
-        anim(cb_blick_y, 0, 7, 180, 180, 2);  // nicken
-        zeige_schild((name.empty() ? std::string("Timer: ") : name + ": ") + dauer_text(sek), 3);
+    if (sec > 0) {
+      bool fresh = timer_end_ == 0;
+      timer_end_ = now_ms + (uint32_t) sec * 1000;
+      timer_ringing_ = false;
+      timer_count_ = -1;
+      next_timer_info_ = now_ms + 90000;
+      if (fresh && visible_) {
+        anim(cb_look_y, 0, 7, 180, 180, 2);  // nod
+        show_sign((name.empty() ? std::string(txt::TIMER_PREFIX) : name + ": ") + duration_text(sec), 3);
       }
-    } else if (sek == 0) {
-      bool klang = timer_klingelt_;
-      timer_ende_ = 0;
-      timer_klingelt_ = false;
-      if (klang && sichtbar_) zeitweise(NORMAL, 100);
+    } else if (sec == 0) {
+      bool rang = timer_ringing_;
+      timer_end_ = 0;
+      timer_ringing_ = false;
+      if (rang && visible_) for_a_while(NORMAL, 100);
     } else {
-      timer_ende_ = 0;
-      if (!timer_klingelt_) {
-        timer_klingelt_ = true;
-        klingel_bis_ = jetzt + 120000;
-        naechstes_klingeln_ = jetzt;
+      timer_end_ = 0;
+      if (!timer_ringing_) {
+        timer_ringing_ = true;
+        ring_until_ = now_ms + 120000;
+        next_ring_ = now_ms;
       }
     }
   }
 
-  void aufbauen(lv_obj_t *flaeche, lv_obj_t *schild, lv_obj_t *schild_text) {
-    schild_ = schild;
-    schild_text_ = schild_text;
-    root_ = form(flaeche, 0, 0, 320, 240, HINTERGRUND, 0);
-    lv_obj_move_background(root_);  // Assist-Panel und Schild liegen darüber
+  void build(lv_obj_t *surface, lv_obj_t *sign, lv_obj_t *sign_text) {
+    sign_ = sign;
+    sign_text_ = sign_text;
+    root_ = shape(surface, 0, 0, 320, 240, BACKGROUND, 0);
+    lv_obj_move_background(root_);  // assist panel and sign lie on top
     lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 
-    uhr_ = lv_label_create(root_);
-    lv_obj_set_pos(uhr_, 258, 8);
-    lv_obj_set_style_text_color(uhr_, lv_color_hex(0x5A6274), 0);
-    lv_label_set_text(uhr_, "");
+    clock_ = lv_label_create(root_);
+    lv_obj_set_pos(clock_, 258, 8);
+    lv_obj_set_style_text_color(clock_, lv_color_hex(0x5A6274), 0);
+    lv_label_set_text(clock_, "");
 
-    deko_bauen();
-    schatten_ = form(root_, 95, 222, 130, 12, SCHATTEN);
-    lv_obj_add_event_cb(flaeche, cb_touch, LV_EVENT_ALL, this);
-    figur_bauen();
-    hilfe_bauen();
-    // Mini-Nabu für Besuche: grauer Kopf mit dunklem Visier, zwei Leuchtaugen, Antenne
-    nabu_mini_ = form(root_, 330, 150, 52, 64, 0, 0);
+    build_decor();
+    shadow_ = shape(root_, 95, 222, 130, 12, SHADOW);
+    lv_obj_add_event_cb(surface, cb_touch, LV_EVENT_ALL, this);
+    build_figure();
+    build_help();
+    // mini Nabu for visits: grey head with a dark visor, two glowing eyes, antenna
+    nabu_mini_ = shape(root_, 330, 150, 52, 64, 0, 0);
     lv_obj_set_style_bg_opa(nabu_mini_, LV_OPA_TRANSP, 0);
-    form(nabu_mini_, 24, 0, 4, 12, METALL, 2);
-    form(nabu_mini_, 20, -4, 12, 12, 0xFF5A7A);
-    lv_obj_t *nk = form(nabu_mini_, 0, 10, 52, 40, 0xC8CCD8, 12);
-    lv_obj_t *nv = form(nk, 6, 7, 40, 24, VISIER, 8);
-    form(nv, 8, 7, 8, 10, LEUCHT);
-    form(nv, 24, 7, 8, 10, LEUCHT);
-    form(nabu_mini_, 10, 50, 10, 12, METALL, 3);
-    form(nabu_mini_, 32, 50, 10, 12, METALL, 3);
-    zeigen(nabu_mini_, false);
+    shape(nabu_mini_, 24, 0, 4, 12, METAL, 2);
+    shape(nabu_mini_, 20, -4, 12, 12, 0xFF5A7A);
+    lv_obj_t *nk = shape(nabu_mini_, 0, 10, 52, 40, 0xC8CCD8, 12);
+    lv_obj_t *nv = shape(nk, 6, 7, 40, 24, VISOR, 8);
+    shape(nv, 8, 7, 8, 10, GLOW);
+    shape(nv, 24, 7, 8, 10, GLOW);
+    shape(nabu_mini_, 10, 50, 10, 12, METAL, 3);
+    shape(nabu_mini_, 32, 50, 10, 12, METAL, 3);
+    show(nabu_mini_, false);
 
-    // Antwortfelder für Fragen (unten links/rechts)
-    frage_box_ = form(root_, 0, 186, 320, 54, 0, 0);
-    lv_obj_set_style_bg_opa(frage_box_, LV_OPA_TRANSP, 0);
-    static const uint32_t FARBE[2] = {0x2E9E5A, 0xC8463C};
+    // answer fields for questions (bottom left/right)
+    question_box_ = shape(root_, 0, 186, 320, 54, 0, 0);
+    lv_obj_set_style_bg_opa(question_box_, LV_OPA_TRANSP, 0);
+    static const uint32_t COLOR[2] = {0x2E9E5A, 0xC8463C};
     for (int i = 0; i < 2; i++) {
-      lv_obj_t *b = form(frage_box_, i ? 166 : 10, 2, 144, 46, FARBE[i], 14);
-      rand(b, 2, 0xF4E4C1);
-      frage_lbl_[i] = lv_label_create(b);
-      lv_obj_set_style_text_color(frage_lbl_[i], lv_color_hex(0xFFFFFF), 0);
-      lv_obj_center(frage_lbl_[i]);
+      lv_obj_t *b = shape(question_box_, i ? 166 : 10, 2, 144, 46, COLOR[i], 14);
+      border(b, 2, 0xF4E4C1);
+      question_lbl_[i] = lv_label_create(b);
+      lv_obj_set_style_text_color(question_lbl_[i], lv_color_hex(0xFFFFFF), 0);
+      lv_obj_center(question_lbl_[i]);
     }
-    zeigen(frage_box_, false);
+    show(question_box_, false);
 
-    // Tic-Tac-Toe: abgedunkelter Hintergrund, 3×3 Felder; Schrift wie auf dem Schild
-    spiel_box_ = form(root_, 0, 0, 320, 240, 0x0B0D13, 0);
-    lv_obj_set_style_bg_opa(spiel_box_, 200, 0);
-    const lv_font_t *gross = lv_obj_get_style_text_font(schild_text_, LV_PART_MAIN);
+    // Tic-tac-toe: dimmed background, 3×3 fields; font as on the sign
+    game_box_ = shape(root_, 0, 0, 320, 240, 0x0B0D13, 0);
+    lv_obj_set_style_bg_opa(game_box_, 200, 0);
+    const lv_font_t *big = lv_obj_get_style_text_font(sign_text_, LV_PART_MAIN);
     for (int i = 0; i < 9; i++) {
-      lv_obj_t *z = form(spiel_box_, 70 + (i % 3) * 62, 30 + (i / 3) * 62, 58, 58, 0xF4E4C1, 10);
+      lv_obj_t *z = shape(game_box_, 70 + (i % 3) * 62, 30 + (i / 3) * 62, 58, 58, 0xF4E4C1, 10);
       ttt_lbl_[i] = lv_label_create(z);
-      lv_obj_set_style_text_font(ttt_lbl_[i], gross, 0);
+      lv_obj_set_style_text_font(ttt_lbl_[i], big, 0);
       lv_obj_center(ttt_lbl_[i]);
     }
-    zeigen(spiel_box_, false);
+    show(game_box_, false);
 
-    // Simon Says: vier große Farbfelder
-    simon_box_ = form(root_, 0, 0, 320, 240, 0x0B0D13, 0);
+    // Simon Says: four big colour fields
+    simon_box_ = shape(root_, 0, 0, 320, 240, 0x0B0D13, 0);
     lv_obj_set_style_bg_opa(simon_box_, 220, 0);
-    for (int i = 0; i < 4; i++) simon_feld_[i] = form(simon_box_, (i % 2) ? 166 : 12, (i / 2) ? 126 : 14, 142, 100, SIMON_DUNKEL[i], 18);
-    zeigen(simon_box_, false);
+    for (int i = 0; i < 4; i++) simon_field_[i] = shape(simon_box_, (i % 2) ? 166 : 12, (i / 2) ? 126 : 14, 142, 100, SIMON_DARK[i], 18);
+    show(simon_box_, false);
   }
 
-  // Figur wechseln (geht jederzeit, auch vor aufbauen())
-  void art(Art a) {
-    if (a == art_ && koerper_ != nullptr) return;
+  // change the character (works any time, also before build())
+  void kind(Kind a) {
+    if (a == kind_ && body_ != nullptr) return;
     if (root_ == nullptr) {
-      art_ = a;
+      kind_ = a;
       return;
     }
-    bool war = sichtbar_;
-    sichtbar(false);  // noch mit der alten Figur: farbe() fasste sonst Okti-Arme an, die es nicht gibt (Absturz 25.10.)
-    art_ = a;
-    figur_bauen();
-    sichtbar(war);
+    bool was_on = visible_;
+    visible(false);  // still with the old character: color() would otherwise touch Okti arms that do not exist (crash 2026-10-25)
+    kind_ = a;
+    build_figure();
+    visible(was_on);
   }
 
-  bool ist_sichtbar() const { return sichtbar_; }
-  // Erst nach aufbauen() (on_boot) darf irgendwer LVGL-Objekte anfassen. Selects lösen on_value schon
-  // beim Setup aus, vor LVGL: das hängte das Board (Task-WDT, Bootschleife, 24.10.2026).
-  bool bereit() const { return root_ != nullptr; }
-  // Wischen läuft gerade oder ist eben zu Ende: Tippen im YAML dann ignorieren
-  bool streichelt() const {
-    return streichel_aktiv_ || (streichel_bis_ && !vorbei(esphome::millis(), streichel_bis_));
+  bool is_visible() const { return visible_; }
+  // Nobody may touch LVGL objects before build() (on_boot). Selects fire on_value already
+  // during setup, before LVGL: that hung the board (task WDT, boot loop, 2026-10-24).
+  bool ready() const { return root_ != nullptr; }
+  // a swipe is running or just ended: ignore taps in the YAML then
+  bool petting() const {
+    return petting_active_ || (petting_until_ && !passed(esphome::millis(), petting_until_));
   }
 
-  void sichtbar(bool s) {
-    if (!bereit() || s == sichtbar_) return;
-    sichtbar_ = s;
+  void visible(bool s) {
+    if (!ready() || s == visible_) return;
+    visible_ = s;
     lv_anim_delete(this, nullptr);
-    blinzel_ = hop_ = atem_ = wackel_ = blick_x_ = blick_y_ = arm_pos_ = besuch_x_ = 0;
-    besuch_los_ = besuch_zurueck_ = 0;
-    schild_y_ = SCHILD_WEG;
-    schild_bis_ = ausdruck_bis_ = nachher_bei_ = winken_bis_ = zappeln_bis_ = 0;
-    schilder_.clear();
-    naechster_ruf_ = esphome::millis() + 2000;  // wartende Post meldet sich nach dem Erscheinen
-    if (spiel_ != KEIN_SPIEL) {
-      zeigen(spiel_box_, false);
-      zeigen(simon_box_, false);
-      spiel_beenden(spiel_ == REAKTION ? "reaktion" : spiel_ == TTT ? "ttt" : "simon", -2);
+    blink_ = hop_ = breath_ = wobble_ = look_x_ = look_y_ = arm_pos_ = visit_x_ = 0;
+    visit_leave_ = visit_return_ = 0;
+    sign_y_ = SIGN_HIDDEN;
+    sign_until_ = expression_until_ = later_at_ = wave_until_ = wiggle_until_ = 0;
+    signs_.clear();
+    next_call_ = esphome::millis() + 2000;  // waiting post announces itself after appearing
+    if (game_ != NO_GAME) {
+      show(game_box_, false);
+      show(simon_box_, false);
+      end_game(game_ == REACTION ? "reaction" : game_ == TTT ? "ttt" : "simon", -2);
     }
-    frage_gezeigt_ = false;
-    zeigen(frage_box_, false);
-    streichel_aktiv_ = gedrueckt_ = false;
-    greif_arm_ = -1;
+    question_shown_ = false;
+    show(question_box_, false);
+    petting_active_ = pressed_ = false;
+    grab_arm_ = -1;
     if (s) {
-      uint32_t jetzt = esphome::millis();
+      uint32_t now_ms = esphome::millis();
       lv_obj_clear_flag(root_, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_clear_flag(schild_, LV_OBJ_FLAG_HIDDEN);
-      atem_starten();
-      naechstes_blinzeln_ = jetzt + 1500;
-      naechster_blick_ = jetzt + 2500;
-      naechste_idee_ = jetzt + 15000;
-      letzte_beruehrung_ = jetzt;
-      basis_ = NORMAL;
-      lw_stufe_ = 0;
-      schmollen_ = false;
-      if (schlaeft_) {
-        schlaf_szene();
-      } else {  // kommt herein: Fuchs läuft, Okti krabbelt (Arme zappeln), Roboter rollt
-        anim(cb_besuch, -340, 0, art_ == OKTI ? 2600 : 2000, 0, 1, lv_anim_path_ease_out);
-        if (art_ == OKTI) zappeln_bis_ = jetzt + 2600;
+      lv_obj_clear_flag(sign_, LV_OBJ_FLAG_HIDDEN);
+      start_breathing();
+      next_blink_ = now_ms + 1500;
+      next_look_ = now_ms + 2500;
+      next_idea_ = now_ms + 15000;
+      last_touch_ = now_ms;
+      base_ = NORMAL;
+      bored_level_ = 0;
+      sulking_ = false;
+      if (sleeping_) {
+        sleep_scene();
+      } else {  // comes in: fox walks, Okti crawls (arms wiggle), robot rolls
+        anim(cb_visit, -340, 0, kind_ == OKTI ? 2600 : 2000, 0, 1, lv_anim_path_ease_out);
+        if (kind_ == OKTI) wiggle_until_ = now_ms + 2600;
       }
     } else {
       lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_add_flag(schild_, LV_OBJ_FLAG_HIDDEN);
-      if (led_aus_bei_ && led) led(0, 0);
-      led_aus_bei_ = 0;
+      lv_obj_add_flag(sign_, LV_OBJ_FLAG_HIDDEN);
+      if (led_off_at_ && led) led(0, 0);
+      led_off_at_ = 0;
     }
-    ausdruck_setzen(basis_);
-    koerper_layout();
-    gesicht_layout();
-    arme_layout();
-    schild_layout();
-    tentakel_zeichnen();
+    apply_expression(base_);
+    body_layout();
+    face_layout();
+    arms_layout();
+    sign_layout();
+    draw_tentacles();
   }
 
-  void uhr(int stunde, int minute) {
-    if (uhr_) lv_label_set_text(uhr_, esphome::str_sprintf("%02d:%02d", stunde, minute).c_str());
+  void clock(int hour_, int minute) {
+    if (clock_) lv_label_set_text(clock_, esphome::str_sprintf("%02d:%02d", hour_, minute).c_str());
   }
-  // Jahreszeit aus dem Datum (Auto) oder fest per Auswahl „Deko“: 0 Auto, 1 Aus, 2 Halloween, 3 Weihnachten
-  void saison(int monat, int tag);
-  void deko(int modus);
-  // Heutiger Anlass von HA (sensor.yellow_anlass_heute: „ostern“, „geburtstag|Name“, „herbst“ …)
-  void anlass(const std::string &a);
-  void deko_test(const std::string &key) {  // zum Ausprobieren, leer = wieder normal
-    deko_test_ = key;
-    deko_anwenden();
+  // season from the date (Auto) or fixed via the select "Decoration": 0 Auto, 1 Off, 2 Halloween, 3 Christmas
+  void season(int month, int day);
+  void decor(int mode);
+  // today's occasion from HA ("easter", "birthday|Name", "autumn" …)
+  void occasion(const std::string &a);
+  void decor_test(const std::string &key) {  // for trying out, empty = back to normal
+    decor_test_ = key;
+    apply_decor();
   }
-  void deko_schrift(const lv_font_t *f) { deko_font_ = f; }
-  // Lage wie HA-weather (sunny, rainy, pouring, lightning-rainy, snowy, fog, windy …); Test hat Vorrang, leer = HA
-  void wetter(const std::string &lage) { wetter_ha_ = lage; wetter_anwenden(); }
-  void wetter_test(const std::string &lage) { wetter_test_ = lage; wetter_anwenden(); }
+  void decor_font(const lv_font_t *f) { decor_font_ = f; }
+  // condition like HA weather (sunny, rainy, pouring, lightning-rainy, snowy, fog, windy …); test wins, empty = HA
+  void weather(const std::string &condition) { weather_ha_ = condition; apply_weather(); }
+  void weather_test(const std::string &condition) { weather_test_ = condition; apply_weather(); }
 
-  // Einzelner Tipp
-  void anstupsen() {
-    if (!sichtbar_) return;
-    uint32_t jetzt = esphome::millis();
-    if (abgeholt_bis_ && !vorbei(jetzt, abgeholt_bis_)) return;  // der Tipp hat eine Nachricht abgeholt
-    if (verreist_) return;
-    if (schlaeft_) {  // Antippen weckt
-      schlafen(false);
-      if (aufgewacht) aufgewacht();
+  // single tap
+  void poke() {
+    if (!visible_) return;
+    uint32_t now_ms = esphome::millis();
+    if (collected_until_ && !passed(now_ms, collected_until_)) return;  // the tap collected a message
+    if (away_) return;
+    if (sleeping_) {  // a tap wakes him
+      sleep(false);
+      if (woke_up) woke_up();
       return;
     }
-    zahl_[TIPPS]++;
-    if (schmollen_) {  // Antippen reicht nicht, Streicheln schon
-      static const char *const hmpf[] = {"Hmpf.", "Bin beleidigt.", "Jetzt auf einmal?", "Streicheln. Zweimal."};
-      zeitweise(GENERVT, 1500);
-      anim(cb_blick_x, blick_x_, -12, 200);
-      zeige_schild(hmpf[zufall(4)], 2);
+    counts_[TAPS]++;
+    if (sulking_) {  // a tap is not enough, petting is
+      static const char *const huff[] = {txt::HUFF, txt::OFFENDED, txt::NOW_ALL_OF_A_SUDDEN, txt::PET_TWICE};
+      for_a_while(ANNOYED, 1500);
+      anim(cb_look_x, look_x_, -12, 200);
+      show_sign(huff[rnd(4)], 2);
       return;
     }
-    if (jetzt - stups_start_ > 3000) {
-      stups_start_ = jetzt;
-      stupser_ = 0;
+    if (now_ms - poke_start_ > 3000) {
+      poke_start_ = now_ms;
+      pokes_ = 0;
     }
-    ESP_LOGD("yellow", "Tipp %d in %u ms", stupser_ + 1, (unsigned) (jetzt - stups_start_));
-    if (++stupser_ >= 4 && art_ == OKTI && zufall(2)) {  // Okti: jedes zweite Mal Tintenwolke statt schwindlig
-      stupser_ = 0;
-      tinte();
-      nachher_text_ = "Bitte nicht.";
-      nachher_bei_ = jetzt + 2600;
-    } else if (stupser_ >= 4 && art_ == ROBOTER && zufall(2)) {  // Roboter: jedes zweite Mal Visier-Glitch
-      stupser_ = 0;
+    ESP_LOGD("yellow", "Tap %d in %u ms", pokes_ + 1, (unsigned) (now_ms - poke_start_));
+    if (++pokes_ >= 4 && kind_ == OKTI && rnd(2)) {  // Okti: every other time an ink cloud instead of dizzy
+      pokes_ = 0;
+      ink();
+      later_text_ = txt::PLEASE_DONT;
+      later_at_ = now_ms + 2600;
+    } else if (pokes_ >= 4 && kind_ == ROBOT && rnd(2)) {  // Robot: every other time a visor glitch
+      pokes_ = 0;
       glitch();
-    } else if (stupser_ >= 4) {
-      stupser_ = 0;
-      zeitweise(SCHWINDLIG, 3200);
-      anim(cb_wackel, 0, 1000, 1600);
-      zappeln_bis_ = jetzt + 3000;
-      led_blitz(0x8A4DFF, 3000);
-      nachher_text_ = "Bitte nicht.";
-      nachher_bei_ = jetzt + 3300;
+    } else if (pokes_ >= 4) {
+      pokes_ = 0;
+      for_a_while(DIZZY, 3200);
+      anim(cb_wobble, 0, 1000, 1600);
+      wiggle_until_ = now_ms + 3000;
+      led_flash(0x8A4DFF, 3000);
+      later_text_ = txt::PLEASE_DONT;
+      later_at_ = now_ms + 3300;
     } else {
-      zeitweise(FROH, 1300);
+      for_a_while(HAPPY, 1300);
       anim(cb_hop, 0, 14, 160, 180, 1, lv_anim_path_ease_out);
-      zappeln_bis_ = jetzt + 900;
-      led_blitz(plan_->licht, 400);
+      wiggle_until_ = now_ms + 900;
+      led_flash(plan_->light, 400);
     }
   }
 
-  void zeige_schild(const std::string &text, int sekunden);
+  void show_sign(const std::string &text, int seconds);
 
-  // Absichtlich unperfekt: Schild falsch herum (dreht es dann um) oder mit Buchstabendreher (korrigiert genervt)
-  void schild_patzer(const std::string &text);
-  void patzer_tick(uint32_t jetzt);
+  // Imperfect on purpose: sign upside down (then turns it) or with swapped letters (corrects it, annoyed)
+  void sign_blunder(const std::string &text);
+  void blunder_tick(uint32_t now_ms);
 
-  // Nachricht zeigen. warten = erst Aufmerksamkeit (winken, „!“, LED pulsiert), Nachricht erst nach Antippen.
-  // Lange Texte werden auf mehrere Schilder verteilt. Wartende Nachrichten überleben die Uhr-Ansicht
-  // und das Dunkel; Yellow meldet sich, sobald er wieder sichtbar ist. Höchstens 5 in der Schlange.
-  void nachricht(const std::string &text, bool warten, int sekunden = 4);
-  int wartend() const { return (int) post_.size(); }
-  // Frage still entfernen (ohne Antwort-Ereignis)
-  void frage_abbrechen();
-  // Post per HA: nächste Nachricht zeigen (wie Antippen) oder alle verwerfen
-  void post_abspielen();
-  void post_leeren();
-  // Stimmung 0 (gelb, froh) … 100 (rot, grummelig), Regler in HA. Genervt/traurig ziehen zeitweise auf 100.
-  void stimmung(int v) {
-    stimmung_ = std::max(0, std::min(100, v));
-    if (bereit()) ausdruck_setzen(ausdruck_);
+  // Show a message. wait = attention first (waving, "!", LED pulses), the message only after a tap.
+  // Long texts are spread over several signs. Waiting messages survive the clock view
+  // and the dark; Yellow announces them as soon as he is visible again. At most 5 in the queue.
+  void message(const std::string &text, bool wait, int seconds = 4);
+  int waiting() const { return (int) post_.size(); }
+  // remove a question silently (without an answer event)
+  void cancel_question();
+  // post via HA: show the next message (like a tap) or drop all
+  void play_post();
+  void clear_post();
+  // Mood 0 (yellow, happy) … 100 (red, grumpy), slider in HA. Annoyed/sad pull it to 100 for a while.
+  void mood(int v) {
+    mood_ = std::max(0, std::min(100, v));
+    if (ready()) apply_expression(expression_);
   }
-  // Anspannung 0 (entspannt) … 100 (super nervös): Arm-/Schwanz-Tempo, Blinzeln, Blick, Atem, Schweiß, Zusammenzucken
-  void anspannung(int v) {
-    anspannung_ = std::max(0, std::min(100, v));
-    if (bereit() && sichtbar_) atem_starten();
+  // Tension 0 (relaxed) … 100 (very nervous): arm/tail pace, blinking, look, breathing, sweat, flinching
+  void tension(int v) {
+    tension_ = std::max(0, std::min(100, v));
+    if (ready() && visible_) start_breathing();
   }
-  // Energie 0 (todmüde) … 100 (hellwach): Atemtempo, Gähnen, Langeweile schneller, halb geschlossene Augen
-  void energie(int v) {
-    energie_ = std::max(0, std::min(100, v));
-    if (!bereit()) return;
-    if (sichtbar_) atem_starten();
-    // sehr müde: Augen dauerhaft halb zu; wieder wach: zurück (außer die Langeweile-Treppe hat schon „müde“ gesetzt)
-    if (energie_ < 20 && basis_ == NORMAL) basis_ = MUEDE;
-    else if (energie_ >= 20 && basis_ == MUEDE && lw_stufe_ < 3) basis_ = NORMAL;
-    if (!ausdruck_bis_ && koerper_) ausdruck_setzen(basis_);
+  // Energy 0 (dead tired) … 100 (wide awake): breathing pace, yawning, faster boredom, half-closed eyes
+  void energy(int v) {
+    energy_ = std::max(0, std::min(100, v));
+    if (!ready()) return;
+    if (visible_) start_breathing();
+    // very tired: eyes half closed for good; awake again: back (unless the boredom stairs already set "tired")
+    if (energy_ < 20 && base_ == NORMAL) base_ = TIRED;
+    else if (energy_ >= 20 && base_ == TIRED && bored_level_ < 3) base_ = NORMAL;
+    if (!expression_until_ && body_) apply_expression(base_);
   }
-  // Atem: müde = langsam und tief, nervös = schnell und flach
-  void atem_starten() {
-    int ms = 1300 + (100 - energie_) * 14 - anspannung_ * 6;
-    int tief = energie_ < 30 ? 4 : anspannung_ > 70 ? 2 : 3;
-    anim(cb_atem, 0, tief, ms, ms, LV_ANIM_REPEAT_INFINITE);
+  // breathing: tired = slow and deep, nervous = fast and shallow
+  void start_breathing() {
+    int ms = 1300 + (100 - energy_) * 14 - tension_ * 6;
+    int deep = energy_ < 30 ? 4 : tension_ > 70 ? 2 : 3;
+    anim(cb_breath, 0, deep, ms, ms, LV_ANIM_REPEAT_INFINITE);
   }
-  static std::string dauer_text(int sek) {
-    if (sek >= 90) return esphome::str_sprintf("%d min", (sek + 30) / 60);
-    return esphome::str_sprintf("%d s", sek);
+  static std::string duration_text(int sec) {
+    if (sec >= 90) return esphome::str_sprintf("%d min", (sec + 30) / 60);
+    return esphome::str_sprintf("%d s", sec);
   }
-  // Requisit zeigen: sonnenbrille, schirm, schal, keins; sekunden 0 = bleibt
-  // Yellow verreist: Figur weg, Koffer mit Aufklebern und Zettel (Text = letzte Postkarte); zurück mit Souvenir
-  void verreist(bool an, const std::string &karte);
+  // Show a prop: sunglasses, umbrella, scarf, none; seconds 0 = stays
+  // Yellow is away: character gone, suitcase with stickers and a note (text = last postcard); comes back with a souvenir
+  void away(bool on, const std::string &card);
 
-  bool requisit(const std::string &name, int sekunden) {
-    int r = name == "sonnenbrille" ? 1 : name == "schirm" ? 2 : name == "schal" ? 3 : name == "faecher" ? 4
-          : name == "giesskanne" ? 5 : name == "tuete" ? 6 : name == "waeschekorb" ? 7 : name == "muelltonne" ? 8
-          : name == "kissen" ? 9 : name == "keins" ? 0 : -1;
+  bool prop(const std::string &name, int seconds) {
+    int r = name == "sunglasses" ? 1 : name == "umbrella" ? 2 : name == "scarf" ? 3 : name == "fan" ? 4
+          : name == "watering_can" ? 5 : name == "joint" ? 6 : name == "laundry_basket" ? 7 : name == "trash_can" ? 8
+          : name == "pillow" ? 9 : name == "none" ? 0 : -1;
     if (r < 0) return false;
-    if (r == 4 && art_ == FUCHS) {  // Fuchs braucht keinen Fächer: fächelt mit dem Schwanz
-      schwanzfaecher();
+    if (r == 4 && kind_ == FOX) {  // the fox needs no fan: fans with his tail
+      tail_fan();
       return true;
     }
-    requisit_ = r;
-    requisit_bis_ = (r && sekunden > 0) ? esphome::millis() + sekunden * 1000 : 0;
-    requisit_layout();
+    prop_id_ = r;
+    prop_until_ = (r && seconds > 0) ? esphome::millis() + seconds * 1000 : 0;
+    props_layout();
     return true;
   }
-  // Wo Pfote/Hand i (0 links, 1 rechts) ein Requisit hält (Körper-Koordinaten); false = Hand frei
-  bool griff(int i, int &x, int &y) const {
+  // where paw/hand i (0 left, 1 right) holds a prop (body coordinates); false = hand free
+  bool grip(int i, int &x, int &y) const {
     static const int G[10][2][3] = {
         {{0}, {0}}, {{0}, {0}}, {{0}, {1, 186, 100}}, {{0}, {0}}, {{1, -4, 106}, {0}}, {{0}, {1, 180, 108}},
         {{0}, {0}}, {{1, 48, 132}, {1, 132, 132}}, {{0}, {1, 196, 96}}, {{1, 4, 72}, {0}}};
-    if (requisit_ < 0 || requisit_ > 9 || !G[requisit_][i][0]) return false;
-    x = G[requisit_][i][1];
-    y = G[requisit_][i][2];
+    if (prop_id_ < 0 || prop_id_ > 9 || !G[prop_id_][i][0]) return false;
+    x = G[prop_id_][i][1];
+    y = G[prop_id_][i][2];
     return true;
   }
-  void requisit_layout() {
-    zeigen(brille_, requisit_ == 1);
-    zeigen(schirm_, requisit_ == 2);
-    zeigen(schal_, requisit_ == 3);
-    zeigen(faecher_, requisit_ == 4);
-    zeigen(kanne_, requisit_ == 5);
-    zeigen(tuete_, requisit_ == 6);
-    for (auto *r : rauch_) zeigen(r, requisit_ == 6);
-    zeigen(korb_, requisit_ == 7);
-    zeigen(tonne_, requisit_ == 8);
-    zeigen(kissen_, requisit_ == 9);
+  void props_layout() {
+    show(glasses_, prop_id_ == 1);
+    show(umbrella_, prop_id_ == 2);
+    show(scarf_, prop_id_ == 3);
+    show(fan_, prop_id_ == 4);
+    show(can_, prop_id_ == 5);
+    show(joint_, prop_id_ == 6);
+    for (auto *r : smoke_) show(r, prop_id_ == 6);
+    show(basket_, prop_id_ == 7);
+    show(bin_, prop_id_ == 8);
+    show(pillow_, prop_id_ == 9);
   }
-  // Liebesbriefe sind Post mit Präfix LIEBE_PRAEFIX: rosa Umschlag, Herz-Siegel, Herzen beim Öffnen
-  static bool ist_liebe(const std::string &t) { return t.rfind(LIEBE_PRAEFIX, 0) == 0; }
-  void brief_layout() {
-    zeigen(brief_, !post_.empty() || (brief_offen_bis_ && !vorbei(esphome::millis(), brief_offen_bis_)));
-    if (brief_ == nullptr) return;
-    bool liebe = !post_.empty() && ist_liebe(post_.front());
-    lv_obj_set_style_bg_color(brief_, lv_color_hex(liebe ? 0xFFC8D8 : 0xF4E4C1), 0);
-    if (brief_siegel_) {
-      lv_obj_set_style_bg_color(brief_siegel_, lv_color_hex(liebe ? 0xFF2A5A : ROT), 0);
-      lv_obj_set_size(brief_siegel_, liebe ? 11 : 9, liebe ? 11 : 9);
+  // Love letters are post with the prefix LOVE_PREFIX: pink envelope, heart seal, hearts when opened
+  static bool is_love(const std::string &t) { return t.rfind(LOVE_PREFIX, 0) == 0; }
+  void letter_layout() {
+    show(letter_, !post_.empty() || (letter_open_until_ && !passed(esphome::millis(), letter_open_until_)));
+    if (letter_ == nullptr) return;
+    bool love = !post_.empty() && is_love(post_.front());
+    lv_obj_set_style_bg_color(letter_, lv_color_hex(love ? 0xFFC8D8 : 0xF4E4C1), 0);
+    if (letter_seal_) {
+      lv_obj_set_style_bg_color(letter_seal_, lv_color_hex(love ? 0xFF2A5A : RED), 0);
+      lv_obj_set_size(letter_seal_, love ? 11 : 9, love ? 11 : 9);
     }
   }
-  // Klappe zu (V nach unten) oder offen (Spitze nach oben); Linie liegt 14 px höher, damit „offen“ hineinpasst
-  void klappe(bool offen) {
-    if (brief_klappe_obj_ == nullptr) return;
-    brief_klappe_[0].x = 0;
-    brief_klappe_[0].y = 14;
-    brief_klappe_[1].x = 21;
-    brief_klappe_[1].y = offen ? 0 : 29;
-    brief_klappe_[2].x = 42;
-    brief_klappe_[2].y = 14;
-    lv_line_set_points(brief_klappe_obj_, brief_klappe_, 3);
+  // flap closed (V down) or open (tip up); the line sits 14 px higher so "open" fits in
+  void flap(bool open) {
+    if (letter_flap_obj_ == nullptr) return;
+    letter_flap_[0].x = 0;
+    letter_flap_[0].y = 14;
+    letter_flap_[1].x = 21;
+    letter_flap_[1].y = open ? 0 : 29;
+    letter_flap_[2].x = 42;
+    letter_flap_[2].y = 14;
+    lv_line_set_points(letter_flap_obj_, letter_flap_, 3);
   }
 
-  void setze_ausdruck(const std::string &name, int sekunden) {
-    if (!sichtbar_) return;
-    static const char *const namen[] = {"normal", "froh", "ueberrascht", "schwindlig", "muede",
-                                        "genervt", "traurig", "schlaf", "gaehnen"};
-    for (int i = 0; i <= GAEHNEN; i++) {
-      if (name != namen[i]) continue;
-      if (sekunden <= 0) {  // dauerhaft, bis zur nächsten Berührung
-        basis_ = (Ausdruck) i;
-        ausdruck_bis_ = 0;
-        ausdruck_setzen(basis_);
+  void set_expression(const std::string &name, int seconds) {
+    if (!visible_) return;
+    static const char *const names[] = {"normal", "happy", "surprised", "dizzy", "tired",
+                                        "annoyed", "sad", "asleep", "yawn"};
+    for (int i = 0; i <= YAWN; i++) {
+      if (name != names[i]) continue;
+      if (seconds <= 0) {  // permanent, until the next touch
+        base_ = (Expression) i;
+        expression_until_ = 0;
+        apply_expression(base_);
       } else {
-        zeitweise((Ausdruck) i, sekunden * 1000);
+        for_a_while((Expression) i, seconds * 1000);
       }
-      if (i == SCHWINDLIG) anim(cb_wackel, 0, 1000, 1600);
+      if (i == DIZZY) anim(cb_wobble, 0, 1000, 1600);
       return;
     }
   }
 
-  // Einzelne Geste (für HA/LLM): huepfen, wackeln, wedeln, nicken, kopfschuetteln, winken, erschrecken, orakel
-  bool geste(const std::string &g) {
-    if (!sichtbar_) return false;
-    uint32_t jetzt = esphome::millis();
-    if (g == "huepfen") anim(cb_hop, 0, 14, 160, 180, 2, lv_anim_path_ease_out);
-    else if (g == "wackeln") anim(cb_wackel, 0, 1000, 1500);
-    else if (g == "wedeln") zappeln_bis_ = jetzt + 2000;
-    else if (g == "nicken") anim(cb_blick_y, 0, 7, 180, 180, 2);
-    else if (g == "kopfschuetteln") anim(cb_schuetteln, 0, 1000, 1200);
-    else if (g == "winken") winken(2500);
-    else if (g == "tinte" && art_ == OKTI) tinte();
-    else if (g == "faustgruss") faustgruss();
-    else if (g == "spezial") spezial();
-    else if (g == "maeuselsprung" && art_ == FUCHS) maeuselsprung();
-    else if (g == "glitch" && art_ == ROBOTER) glitch();
-    else if (g == "knoten" && art_ == OKTI) knoten();
-    else if (g == "lichtschreck") licht_schreck();
-    else if (g == "herzen") herzen_start();
-    else if (g == "hilfe") hilfe(true);
-    else if (g == "jonglieren" && art_ == OKTI) jonglieren();
-    else if (g == "schwanz_jagen" && art_ == FUCHS) schwanz_jagen();
-    else if (g == "propeller" && art_ == ROBOTER) propeller();
-    else if (g == "schwanzfaecher" && art_ == FUCHS) schwanzfaecher();
-    else if (g == "visier" && art_ == ROBOTER) visier_auf();
-    else if (g == "patzer") schild_patzer(spruch());
-    else if (g == "welk") {  // Arme hängen schlaff, traurig, 6 s
-      zeitweise(TRAURIG, 6000);
-      welk_bis_ = jetzt + 6000;
-    } else if (g == "tanzen") {  // Freudentanz: hüpfen, wackeln, alle Arme zappeln, 4 s
-      zeitweise(FROH, 4000);
+  // single gesture (for HA/LLM): hop, wobble, wiggle, nod, shake_head, wave, startle, oracle …
+  bool gesture(const std::string &g) {
+    if (!visible_) return false;
+    uint32_t now_ms = esphome::millis();
+    if (g == "hop") anim(cb_hop, 0, 14, 160, 180, 2, lv_anim_path_ease_out);
+    else if (g == "wobble") anim(cb_wobble, 0, 1000, 1500);
+    else if (g == "wiggle") wiggle_until_ = now_ms + 2000;
+    else if (g == "nod") anim(cb_look_y, 0, 7, 180, 180, 2);
+    else if (g == "shake_head") anim(cb_shake, 0, 1000, 1200);
+    else if (g == "wave") wave(2500);
+    else if (g == "ink" && kind_ == OKTI) ink();
+    else if (g == "fist_bump") fist_bump();
+    else if (g == "special") special();
+    else if (g == "mouse_dive" && kind_ == FOX) mouse_dive();
+    else if (g == "glitch" && kind_ == ROBOT) glitch();
+    else if (g == "knot" && kind_ == OKTI) knot();
+    else if (g == "light_scare") light_scare();
+    else if (g == "hearts") hearts_start();
+    else if (g == "help") help(true);
+    else if (g == "juggle" && kind_ == OKTI) juggle();
+    else if (g == "chase_tail" && kind_ == FOX) chase_tail();
+    else if (g == "propeller" && kind_ == ROBOT) propeller();
+    else if (g == "tail_fan" && kind_ == FOX) tail_fan();
+    else if (g == "visor" && kind_ == ROBOT) open_visor();
+    else if (g == "blunder") sign_blunder(saying());
+    else if (g == "wilt") {  // arms hang limp, sad, 6 s
+      for_a_while(SAD, 6000);
+      wilt_until_ = now_ms + 6000;
+    } else if (g == "dance") {  // happy dance: hop, wobble, all arms wiggle, 4 s
+      for_a_while(HAPPY, 4000);
       anim(cb_hop, 0, 12, 180, 180, 5, lv_anim_path_ease_out);
-      anim(cb_wackel, 0, 1000, 3600);
-      zappeln_bis_ = jetzt + 4000;
-      funkel_bis_ = jetzt + 4000;
+      anim(cb_wobble, 0, 1000, 3600);
+      wiggle_until_ = now_ms + 4000;
+      sparkle_until_ = now_ms + 4000;
       if (led) led(0xFFD23F, 0.5f);
-      led_aus_bei_ = jetzt + 4000;
-    } else if (g == "nabu_kommt") {  // Mini-Nabu läuft von rechts herein, bleibt, Yellow winkt, Nabu geht wieder
+      led_off_at_ = now_ms + 4000;
+    } else if (g == "nabu_visits") {  // mini Nabu walks in from the right, stays, Yellow waves, Nabu leaves again
       lv_obj_move_foreground(nabu_mini_);
-      zeigen(nabu_mini_, true);
+      show(nabu_mini_, true);
       anim(cb_nabu, 330, 248, 1800, 0, 1, lv_anim_path_ease_out);
-      anim(cb_blick_x, blick_x_, 12, 400);
-      naechster_blick_ = jetzt + 9000;
-      nabu_gruss_bei_ = jetzt + 1900;
-      nabu_geht_bei_ = jetzt + 9000;
-    } else if (g == "besuch") {  // „Bin kurz bei Nabu.“, läuft rechts raus, kommt nach 10 s von links zurück
-      zeige_schild("Bin kurz bei Nabu.", 2);
-      besuch_los_ = jetzt + 2200;
-      besuch_zurueck_ = jetzt + 13000;
-    } else if (g == "orakel") {
-      static const char *const antworten[] = {"Ja.", "Nein.", "Eindeutig.", "Lieber nicht.", "Frag Nabu.",
-                                              "Pizza.", "Morgen.", "Frag später nochmal.", "Na klar.",
-                                              "Träum weiter.", "Auf jeden Fall.", "Kein Kommentar."};
-      zeitweise(UEBERRASCHT, 1500);
-      anim(cb_wackel, 0, 1000, 1200);
-      zappeln_bis_ = jetzt + 1200;
-      nachher_text_ = antworten[zufall(sizeof(antworten) / sizeof(antworten[0]))];
-      nachher_bei_ = jetzt + 1400;
-    } else if (g == "erschrecken" && art_ == FUCHS) {
-      zeitweise(UEBERRASCHT, 700);
+      anim(cb_look_x, look_x_, 12, 400);
+      next_look_ = now_ms + 9000;
+      nabu_greet_at_ = now_ms + 1900;
+      nabu_leaves_at_ = now_ms + 9000;
+    } else if (g == "visit_nabu") {  // "Off to see Nabu.", walks out to the right, comes back from the left after 10 s
+      show_sign(txt::OFF_TO_NABU, 2);
+      visit_leave_ = now_ms + 2200;
+      visit_return_ = now_ms + 13000;
+    } else if (g == "oracle") {
+      static const char *const answers[] = {txt::ORACLE_1, txt::ORACLE_2, txt::ORACLE_3, txt::ORACLE_4, txt::ORACLE_5,
+                                              txt::ORACLE_6, txt::ORACLE_7, txt::ORACLE_8, txt::ORACLE_9,
+                                              txt::ORACLE_10, txt::ORACLE_11, txt::NO_COMMENT};
+      for_a_while(SURPRISED, 1500);
+      anim(cb_wobble, 0, 1000, 1200);
+      wiggle_until_ = now_ms + 1200;
+      later_text_ = answers[rnd(sizeof(answers) / sizeof(answers[0]))];
+      later_at_ = now_ms + 1400;
+    } else if (g == "startle" && kind_ == FOX) {
+      for_a_while(SURPRISED, 700);
       anim(cb_hop, 0, 8, 120, 160, 1, lv_anim_path_ease_out);
-      nachher_text_ = "Hab mich nicht erschreckt.";
-      nachher_bei_ = jetzt + 900;
-    } else if (g == "erschrecken") {
-      zeitweise(UEBERRASCHT, 2000);
+      later_text_ = txt::NOT_SCARED;
+      later_at_ = now_ms + 900;
+    } else if (g == "startle") {
+      for_a_while(SURPRISED, 2000);
       anim(cb_hop, 0, 26, 180, 240, 1, lv_anim_path_ease_out);
-      zappeln_bis_ = jetzt + 1200;
+      wiggle_until_ = now_ms + 1200;
     } else
       return false;
-    naechster_blick_ = jetzt + 2500;
+    next_look_ = now_ms + 2500;
     return true;
   }
-  // Tintenwolke (nur Okti): dunkle Kreise quellen auf, Okti verschwindet darin, die Wolke verblasst,
-  // Okti taucht verlegen (rot) wieder auf
-  void tinte();
-  void tinte_tick(uint32_t jetzt);
+  // Ink cloud (Okti only): dark circles swell up, Okti disappears in them, the cloud fades,
+  // Okti reappears, embarrassed (red)
+  void ink();
+  void ink_tick(uint32_t now_ms);
 
-  // Faustgruß: eine Faust kommt nach vorn (wächst), Schild „Faust?“; antippen → „Bumm!“ mit Funken, sonst nach 8 s enttäuscht
-  void faustgruss();
-  void faust_treffer(uint32_t jetzt);
-  void faust_tick(uint32_t jetzt);
+  // Fist bump: a fist comes forward (grows), sign "Fist?"; tap → "Boom!" with sparks, otherwise disappointed after 8 s
+  void fist_bump();
+  void fist_hit(uint32_t now_ms);
+  void fist_tick(uint32_t now_ms);
 
-  // Tageszahlen (Pwnagotchi-Prinzip): Statuszeile unten, Sprüche daraus, für HA als "tipps|streicheln|spiele|faust"
-  enum Zahl { TIPPS, STREICHELN, SPIELE, FAUST };
-  std::string zahlen_text() const {
-    return esphome::str_sprintf("%d|%d|%d|%d", zahl_[TIPPS], zahl_[STREICHELN], zahl_[SPIELE], zahl_[FAUST]);
+  // Daily counts (Pwnagotchi principle): status line at the bottom, sayings from them, for HA as "taps|pets|games|fist"
+  enum Count { TAPS, PETS, GAMES, FIST };
+  std::string counts_text() const {
+    return esphome::str_sprintf("%d|%d|%d|%d", counts_[TAPS], counts_[PETS], counts_[GAMES], counts_[FIST]);
   }
-  void neuer_tag() {
-    for (int &z : zahl_) z = 0;
+  void new_day() {
+    for (int &z : counts_) z = 0;
   }
-  std::string zahlen_spruch() const {
-    int t = zahl_[TIPPS], s = zahl_[STREICHELN], g = zahl_[SPIELE];
-    switch (zufall(4)) {
+  std::string counts_saying() const {
+    int t = counts_[TAPS], s = counts_[PETS], g = counts_[GAMES];
+    switch (rnd(4)) {
       case 0:
-        if (t >= 10) return esphome::str_sprintf("Heute %d× angetippt. Reicht.", t);
+        if (t >= 10) return esphome::str_sprintf(txt::TAPPED_TODAY, t);
         break;
       case 1:
-        if (t >= 3 && s == 0) return "Heute noch nicht gestreichelt. Nur so.";
-        if (s >= 3) return esphome::str_sprintf("%d× gestreichelt. Ich zähle mit.", s);
+        if (t >= 3 && s == 0) return txt::NOT_PETTED_TODAY;
+        if (s >= 3) return esphome::str_sprintf(txt::PETTED_COUNT, s);
         break;
       case 2:
-        if (g >= 3) return esphome::str_sprintf("%d Spiele heute. Ich bin erschöpft.", g);
+        if (g >= 3) return esphome::str_sprintf(txt::GAMES_TODAY, g);
         break;
       default:
-        if (t == 0 && s == 0) return "Heute: 0 Berührungen. Statistik lügt nicht.";
+        if (t == 0 && s == 0) return txt::ZERO_TOUCHES;
     }
     return "";
   }
-  // Statuszeile unten: Symbol + Zahl je Wert (Tippen, Streicheln, Spiele, Faust), Faust erst ab 1
-  void zahlen_tick() {
+  // status line at the bottom: symbol + number per value (taps, pets, games, fist bumps), fist only from 1
+  void counts_tick() {
     static const char *const SYM[4] = {"\U000F0741", "\U000F10F1", "\U000F0297", "\U000F0FD7"};
     if (status_ == nullptr) {
-      status_ = form(root_, 0, 221, 320, 19, 0, 0);
+      status_ = shape(root_, 0, 221, 320, 19, 0, 0);
       transparent(status_);
       lv_obj_set_flex_flow(status_, LV_FLEX_FLOW_ROW);
       lv_obj_set_flex_align(status_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -525,474 +525,474 @@ class Figur {
         status_sym_[i] = lv_label_create(status_);
         if (status_font_) lv_obj_set_style_text_font(status_sym_[i], status_font_, 0);
         lv_label_set_text(status_sym_[i], status_font_ ? SYM[i] : "");
-        status_zahl_[i] = lv_label_create(status_);
-        lv_obj_set_style_pad_right(status_zahl_[i], 10, 0);
-        for (auto *l : {status_sym_[i], status_zahl_[i]}) lv_obj_set_style_text_color(l, lv_color_hex(0x5A6680), 0);
+        status_count_[i] = lv_label_create(status_);
+        lv_obj_set_style_pad_right(status_count_[i], 10, 0);
+        for (auto *l : {status_sym_[i], status_count_[i]}) lv_obj_set_style_text_color(l, lv_color_hex(0x5A6680), 0);
       }
       status_stand_ = -1;
     }
-    int stand = zahl_[TIPPS] * 1000000 + zahl_[STREICHELN] * 10000 + zahl_[SPIELE] * 100 + zahl_[FAUST];
-    if (stand == status_stand_) return;
-    status_stand_ = stand;
+    int state_sum = counts_[TAPS] * 1000000 + counts_[PETS] * 10000 + counts_[GAMES] * 100 + counts_[FIST];
+    if (state_sum == status_stand_) return;
+    status_stand_ = state_sum;
     for (int i = 0; i < 4; i++) {
-      lv_label_set_text(status_zahl_[i], esphome::to_string(zahl_[i]).c_str());
-      bool an = i < 3 || zahl_[FAUST] > 0;
-      zeigen(status_sym_[i], an);
-      zeigen(status_zahl_[i], an);
+      lv_label_set_text(status_count_[i], esphome::to_string(counts_[i]).c_str());
+      bool on = i < 3 || counts_[FIST] > 0;
+      show(status_sym_[i], on);
+      show(status_count_[i], on);
     }
   }
-  void status_schrift(const lv_font_t *f) { status_font_ = f; }
-  void ziffer_schrift(const lv_font_t *f) { ziffer_font_ = f; }
+  void status_font(const lv_font_t *f) { status_font_ = f; }
+  void digit_font(const lv_font_t *f) { digit_font_ = f; }
 
-  // Special Move der aktuellen Figur: Okti Tintenwolke, Fuchs Mäuselsprung, Roboter Visier-Glitch
-  void spezial();
-  // Okti jongliert mit drei Bällen über dem Kopf; tollpatschig: manchmal fällt einer runter
-  void jonglieren();
-  // Fuchs jagt den eigenen Schwanz: rennt hin und her, wird schwindlig
-  void schwanz_jagen();
-  // Roboter: Propeller fährt aus, er hebt kurz ab und landet wieder
+  // special move of the current character: Okti ink cloud, fox mouse dive, robot visor glitch
+  void special();
+  // Okti juggles three balls above the head; clumsy: sometimes one drops
+  void juggle();
+  // fox chases his own tail: runs back and forth, gets dizzy
+  void chase_tail();
+  // robot: propeller extends, he lifts off briefly and lands again
   void propeller();
-  void spezial3_tick(uint32_t jetzt);
-  // Okti: verknotet sich die Arme, zappelt, „Moment.“, schüttelt sie los
-  void knoten();
-  // Fuchs: fächelt sich mit dem Schwanz Luft zu (schnell vor dem Gesicht)
-  void schwanzfaecher();
-  // Roboter: Visier klappt hoch, Zahnräder drehen sich, „Wartung.“, klappt wieder zu
-  void visier_auf();
-  void spezial2_tick(uint32_t jetzt);
+  void special3_tick(uint32_t now_ms);
+  // Okti: ties his arms in a knot, wiggles, "One moment.", shakes them loose
+  void knot();
+  // fox: fans himself with his tail (fast, in front of the face)
+  void tail_fan();
+  // robot: visor flips up, gears turn, "Maintenance.", flips closed again
+  void open_visor();
+  void special2_tick(uint32_t now_ms);
 
-  // Fuchs: springt hoch und taucht kopfüber in einen Erdhügel (Ohren und Schwanz schauen raus), kommt wieder hoch
-  void maeuselsprung();
-  void maus_tick(uint32_t jetzt);
+  // fox: jumps up and dives head first into a mound (ears and tail stick out), comes back up
+  void mouse_dive();
+  void mouse_tick(uint32_t now_ms);
 
-  // Roboter: Visier flackert, Gesicht springt, Scanlinien laufen, kurz schwarz, dann „Neustart… fertig.“
+  // robot: visor flickers, face jumps, scan lines run, briefly black, then "Rebooting… done."
   void glitch();
-  void glitch_tick(uint32_t jetzt);
+  void glitch_tick(uint32_t now_ms);
 
-  // Matrix-Regen (13:37, Nerd-Event des Roboters): grüne Nullen und Einsen fallen hinter der Figur
-  void matrix(int sekunden);
-  void matrix_tick(uint32_t jetzt);
+  // Matrix rain (13:37, the robot's nerd event): green zeros and ones fall behind the character
+  void matrix(int seconds);
+  void matrix_tick(uint32_t now_ms);
 
-  // Schlafen legen (Schalter „Yellow schläft“, auch per Sprache): Okti im Bett mit Decke, Arme hängen raus;
-  // Fuchs zusammengerollt, Schwanz vorn herum; Roboter im Standby (Gesicht aus, Standby-Punkt pulsiert)
-  void schlafen(bool an);
-  bool schlaeft() const { return schlaeft_; }
-  void schlaf_szene();
-  void schlaf_tick(uint32_t jetzt);
+  // Go to sleep (switch "Yellow sleeps", also by voice): Okti in bed with a blanket, arms hanging out;
+  // fox curled up, tail around the front; robot in standby (face off, standby dot pulses)
+  void sleep(bool on);
+  bool sleeping() const { return sleeping_; }
+  void sleep_scene();
+  void sleep_tick(uint32_t now_ms);
 
-  // Erschrecken bei plötzlichem Licht (Raum war dunkel, Lampe geht an): zuckt, kneift die Augen zu, je Figur anders
-  void licht_schreck();
-  void schreck_tick(uint32_t jetzt);
-  void zeigen_spaeter(const char *text, uint32_t ms) {
-    nachher_text_ = text;
-    nachher_bei_ = esphome::millis() + ms;
+  // Fright at sudden light (room was dark, lamp goes on): flinches, squeezes the eyes shut, different per character
+  void light_scare();
+  void scare_tick(uint32_t now_ms);
+  void show_later(const char *text, uint32_t ms) {
+    later_text_ = text;
+    later_at_ = esphome::millis() + ms;
   }
 
-  // Herzen steigen beim Liebesbrief auf (MDI-Herz aus der Deko-Schrift)
-  void herzen_start();
-  void herzen_tick(uint32_t jetzt);
+  // hearts rise for a love letter (MDI heart from the decoration font)
+  void hearts_start();
+  void hearts_tick(uint32_t now_ms);
 
-  // Hilfe: kleines „?“ unten rechts; Antippen zeigt, wie man Yellow bedient (später kommt hier ein Settings-Knopf dazu)
-  void hilfe_bauen();
-  void hilfe(bool an);
-  bool hilfe_offen() const { return hilfe_bis_ != 0; }
-  // Spiele-Knopf unten links: Auswahl Reaktion / Tic-Tac-Toe / Simon
-  void spiele_menue(bool an);
-  void spiele_tipp(int y);
-  bool spiele_offen() const { return spiele_bis_ != 0; }
+  // Help: small "?" bottom right; a tap shows how to use Yellow (a settings button will be added here later)
+  void build_help();
+  void help(bool on);
+  bool help_open() const { return help_until_ != 0; }
+  // games button bottom left: choose reaction / tic-tac-toe / Simon
+  void games_menu(bool on);
+  void games_tap(int y);
+  bool games_open() const { return games_until_ != 0; }
 
-  // Netzstatus neben dem „?“: 0 = alles gut, 1 = WLAN fehlt (rot, „wartet auf Netz: …“),
-  // 2 = MQTT getrennt, Internet da (orange Wolke), 3 = WLAN ohne Internet (orange Weltkugel)
-  int netz_stufe() const { return netz_stufe_; }
-  void netz(int stufe, const std::string &ssid);
+  // network status next to the "?": 0 = all good, 1 = Wi-Fi missing (red, "waiting for network: …"),
+  // 2 = MQTT disconnected, internet there (orange cloud), 3 = Wi-Fi without internet (orange globe)
+  int network_level() const { return network_level_; }
+  void network(int level, const std::string &ssid);
 
-  // Langeweile-Treppe ab der letzten Berührung: 5 min neugierig, 10 min gelangweilt (tippt mit dem Arm, „…“),
-  // 20 min müde, 40 min döst, 60 min schmollt (rot, schaut weg; Antippen reicht nicht, zweimal Streicheln versöhnt)
-  void langeweile(uint32_t jetzt) {
-    // müde Yellows langweilen sich schneller, wache langsamer
-    uint32_t m = (jetzt - letzte_beruehrung_) / 60000 * (50 + (100 - energie_)) / 100;
-    int stufe = m >= 60 ? 5 : m >= 40 ? 4 : m >= 20 ? 3 : m >= 10 ? 2 : m >= 5 ? 1 : 0;
-    if (stufe <= lw_stufe_ || schild_bis_ || ausdruck_bis_ || !post_.empty() || spiel_ != KEIN_SPIEL) return;
-    if (stufe >= 3 && basis_ != NORMAL && basis_ != MUEDE && basis_ != SCHLAF) return;  // von HA gesetzt: nicht überschreiben
-    lw_stufe_ = stufe;
-    switch (stufe) {
+  // Boredom stairs since the last touch: 5 min curious, 10 min bored (taps with an arm, "…"),
+  // 20 min tired, 40 min dozing, 60 min sulking (red, looks away; a tap is not enough, petting twice makes up)
+  void boredom(uint32_t now_ms) {
+    // tired Yellows get bored faster, awake ones slower
+    uint32_t m = (now_ms - last_touch_) / 60000 * (50 + (100 - energy_)) / 100;
+    int level = m >= 60 ? 5 : m >= 40 ? 4 : m >= 20 ? 3 : m >= 10 ? 2 : m >= 5 ? 1 : 0;
+    if (level <= bored_level_ || sign_until_ || expression_until_ || !post_.empty() || game_ != NO_GAME) return;
+    if (level >= 3 && base_ != NORMAL && base_ != TIRED && base_ != ASLEEP) return;  // set by HA: do not overwrite
+    bored_level_ = level;
+    switch (level) {
       case 1:
-        anim(cb_blick_x, blick_x_, 0, 200);
-        anim(cb_blick_y, blick_y_, 2, 200);
-        naechster_blick_ = jetzt + 4000;
-        zeige_schild(zufall(2) ? "Hallo?" : "Jemand da?", 3);
+        anim(cb_look_x, look_x_, 0, 200);
+        anim(cb_look_y, look_y_, 2, 200);
+        next_look_ = now_ms + 4000;
+        show_sign(rnd(2) ? txt::HELLO_Q : txt::ANYONE_THERE, 3);
         break;
       case 2:
-        zappeln_bis_ = jetzt + 1500;
-        anim(cb_wackel, 0, 1000, 1200);
-        zeige_schild(zufall(2) ? "…" : "Mir ist langweilig.", 3);
+        wiggle_until_ = now_ms + 1500;
+        anim(cb_wobble, 0, 1000, 1200);
+        show_sign(rnd(2) ? "…" : txt::BORED, 3);
         break;
       case 3:
-        basis_ = MUEDE;
-        ausdruck_setzen(basis_);
+        base_ = TIRED;
+        apply_expression(base_);
         break;
       case 4:
-        basis_ = SCHLAF;
-        ausdruck_setzen(basis_);
+        base_ = ASLEEP;
+        apply_expression(base_);
         break;
       case 5:
-        schmollen_ = true;
-        versoehnt_ = 0;
-        basis_ = GENERVT;
-        ausdruck_setzen(basis_);
-        anim(cb_blick_x, blick_x_, -12, 400);
-        naechster_blick_ = jetzt + 3000;
-        zeige_schild("Hmpf.", 3);
+        sulking_ = true;
+        reconciled_ = 0;
+        base_ = ANNOYED;
+        apply_expression(base_);
+        anim(cb_look_x, look_x_, -12, 400);
+        next_look_ = now_ms + 3000;
+        show_sign(txt::HUFF, 3);
         break;
     }
   }
-  // Test: so tun, als läge die letzte Berührung so viele Minuten zurück
-  void langeweile_test(int minuten) {
-    letzte_beruehrung_ = esphome::millis() - (uint32_t) minuten * 60000;
-    lw_stufe_ = 0;
-    schmollen_ = false;
-    basis_ = NORMAL;
-    ausdruck_bis_ = 0;
-    if (schild_bis_) schild_bis_ = esphome::millis() + 10;  // laufendes Schild wegräumen
+  // test: pretend the last touch was this many minutes ago
+  void boredom_test(int minutes) {
+    last_touch_ = esphome::millis() - (uint32_t) minutes * 60000;
+    bored_level_ = 0;
+    sulking_ = false;
+    base_ = NORMAL;
+    expression_until_ = 0;
+    if (sign_until_) sign_until_ = esphome::millis() + 10;  // clear a running sign
   }
 
-  // Spruchliste aus der Ferne (eine Zeile = ein Spruch, „-“ oder leer = keine)
-  void fern_sprueche(const std::string &t) {
-    fern_.clear();
+  // remote sayings list (one line = one saying, "-" or empty = none)
+  void remote_sayings(const std::string &t) {
+    remote_.clear();
     size_t a = 0;
     while (t != "-" && a < t.size()) {
       size_t e = t.find('\n', a);
       if (e == std::string::npos) e = t.size();
-      if (e > a) fern_.push_back(t.substr(a, e - a));
+      if (e > a) remote_.push_back(t.substr(a, e - a));
       a = e + 1;
     }
   }
 
-  // Zufälliger Leerlauf-Spruch: jeder dritte aus der Ferne (falls da), sonst halb gemeinsam, halb von der Figur
-  const char *spruch() const {
-    if (!fern_.empty() && zufall(3) == 0) return fern_[zufall(fern_.size())].c_str();
-    if (zufall(2)) return SPRUECHE[zufall(sizeof(SPRUECHE) / sizeof(SPRUECHE[0]))];
-    if (art_ == ROBOTER) return SPRUECHE_ROBOTER[zufall(sizeof(SPRUECHE_ROBOTER) / sizeof(SPRUECHE_ROBOTER[0]))];
-    if (art_ == FUCHS) return SPRUECHE_FUCHS[zufall(sizeof(SPRUECHE_FUCHS) / sizeof(SPRUECHE_FUCHS[0]))];
-    return SPRUECHE_OKTI[zufall(sizeof(SPRUECHE_OKTI) / sizeof(SPRUECHE_OKTI[0]))];
+  // random idle saying: every third from remote (if any), otherwise half shared, half from the character
+  const char *saying() const {
+    if (!remote_.empty() && rnd(3) == 0) return remote_[rnd(remote_.size())].c_str();
+    if (rnd(2)) return txt::SAYINGS[rnd(sizeof(txt::SAYINGS) / sizeof(txt::SAYINGS[0]))];
+    if (kind_ == ROBOT) return txt::SAYINGS_ROBOT[rnd(sizeof(txt::SAYINGS_ROBOT) / sizeof(txt::SAYINGS_ROBOT[0]))];
+    if (kind_ == FOX) return txt::SAYINGS_FOX[rnd(sizeof(txt::SAYINGS_FOX) / sizeof(txt::SAYINGS_FOX[0]))];
+    return txt::SAYINGS_OKTI[rnd(sizeof(txt::SAYINGS_OKTI) / sizeof(txt::SAYINGS_OKTI[0]))];
   }
 
-  // Effekt-Baustein für ein paar Sekunden: schweiss, traene, erroeten, funkeln, keins (0 s = 5 s)
-  bool effekt(const std::string &e, int sekunden) {
-    uint32_t bis = esphome::millis() + (sekunden > 0 ? sekunden : 5) * 1000;
-    if (e == "schweiss") schweiss_bis_ = bis;
-    else if (e == "traene") traene_bis_ = bis;
-    else if (e == "erroeten") roet_bis_ = bis;
-    else if (e == "funkeln") funkel_bis_ = bis;
-    else if (e == "keins") schweiss_bis_ = traene_bis_ = roet_bis_ = funkel_bis_ = 0;
+  // effect for a few seconds: sweat, tear, blush, sparkle, none (0 s = 5 s)
+  bool effect(const std::string &e, int seconds) {
+    uint32_t until = esphome::millis() + (seconds > 0 ? seconds : 5) * 1000;
+    if (e == "sweat") sweat_until_ = until;
+    else if (e == "tear") tear_until_ = until;
+    else if (e == "blush") blush_until_ = until;
+    else if (e == "sparkle") sparkle_until_ = until;
+    else if (e == "none") sweat_until_ = tear_until_ = blush_until_ = sparkle_until_ = 0;
     else return false;
     return true;
   }
-  // Blickrichtung für ein paar Sekunden: links, rechts, oben, unten, mitte
-  bool blick(const std::string &r) {
-    if (!sichtbar_) return false;
+  // look direction for a few seconds: left, right, up, down, center
+  bool look(const std::string &r) {
+    if (!visible_) return false;
     int tx = 0, ty = 0;
-    if (r == "links") tx = -12;
-    else if (r == "rechts") tx = 12;
-    else if (r == "oben") ty = -7;
-    else if (r == "unten") ty = 8;
-    else if (r != "mitte") return false;
-    anim(cb_blick_x, blick_x_, tx, 250);
-    anim(cb_blick_y, blick_y_, ty, 250);
-    naechster_blick_ = esphome::millis() + 5000;
+    if (r == "left") tx = -12;
+    else if (r == "right") tx = 12;
+    else if (r == "up") ty = -7;
+    else if (r == "down") ty = 8;
+    else if (r != "center") return false;
+    anim(cb_look_x, look_x_, tx, 250);
+    anim(cb_look_y, look_y_, ty, 250);
+    next_look_ = esphome::millis() + 5000;
     return true;
   }
 
-  void klingel() {
-    if (!sichtbar_) return;
-    if (art_ == OKTI) {  // Okti erschrickt sich in die eigene Tinte und hält danach das Schild hoch
-      tinte();
-      nachher_text_ = "TÜR!!";
-      nachher_bei_ = esphome::millis() + 2500;
-      led_blitz(0xFFFFFF, 1500);
+  void doorbell() {
+    if (!visible_) return;
+    if (kind_ == OKTI) {  // Okti scares himself into his own ink and then holds up the sign
+      ink();
+      later_text_ = txt::DOOR;
+      later_at_ = esphome::millis() + 2500;
+      led_flash(0xFFFFFF, 1500);
       return;
     }
-    zeitweise(UEBERRASCHT, 3000);
+    for_a_while(SURPRISED, 3000);
     anim(cb_hop, 0, 30, 200, 260, 1, lv_anim_path_ease_out);
-    zappeln_bis_ = esphome::millis() + 2000;
-    if (art_ == FUCHS) {  // mutig: kein Satz, schaut zur Tür
-      ausdruck_bis_ = 0;
-      zeitweise(NORMAL, 3000);
-      anim(cb_blick_x, blick_x_, 12, 200);
-      naechster_blick_ = esphome::millis() + 4000;
-      zeige_schild(zufall(2) ? "Ich geh nachsehen." : "Wer da? Keine Angst.", 6);
+    wiggle_until_ = esphome::millis() + 2000;
+    if (kind_ == FOX) {  // brave: no jump, looks towards the door
+      expression_until_ = 0;
+      for_a_while(NORMAL, 3000);
+      anim(cb_look_x, look_x_, 12, 200);
+      next_look_ = esphome::millis() + 4000;
+      show_sign(rnd(2) ? txt::ILL_CHECK : txt::WHO_THERE, 6);
       return;
     }
-    zeige_schild(art_ == ROBOTER ? "TÜR!! (98 %)" : "TÜR!!", 8);
-    led_blitz(0xFFFFFF, 1500);
+    show_sign(kind_ == ROBOT ? txt::DOOR_ROBOT : txt::DOOR, 8);
+    led_flash(0xFFFFFF, 1500);
   }
 
-  // Wo Nabu steht (aus HA): links, rechts, oben (= anderer Raum)
-  void nabu_richtung(const std::string &r) {
-    nabu_blick_x_ = r == "rechts" ? 12 : r == "oben" ? 0 : -12;
-    nabu_blick_y_ = r == "oben" ? -7 : -4;
+  // where the voice assistant stands (from HA): left, right, up (= another room)
+  void nabu_direction(const std::string &r) {
+    nabu_look_x_ = r == "right" ? 12 : r == "up" ? 0 : -12;
+    nabu_look_y_ = r == "up" ? -7 : -4;
   }
-  // Nabus LED-Ring geht an: Yellow schaut aufmerksam hin, neidisch oder neugierig (höchstens alle 20 s)
+  // the voice assistant's LED ring goes on: Yellow looks over attentively, jealous or curious (at most every 20 s)
   void nabu_ring() {
-    if (!sichtbar_ || gedrueckt_ || streichel_aktiv_) return;
-    uint32_t jetzt = esphome::millis();
-    if (nabu_ruhe_ && !vorbei(jetzt, nabu_ruhe_)) return;
-    nabu_ruhe_ = jetzt + 20000;
-    anim(cb_blick_x, blick_x_, nabu_blick_x_, 200);  // dahin, wo Nabu steht
-    anim(cb_blick_y, blick_y_, nabu_blick_y_, 200);
-    naechster_blick_ = jetzt + 4500;
-    if (zufall(2)) {
-      zeitweise(GENERVT, 4500);
-      zeige_schild("Angeber.", 3);
+    if (!visible_ || pressed_ || petting_active_) return;
+    uint32_t now_ms = esphome::millis();
+    if (nabu_quiet_ && !passed(now_ms, nabu_quiet_)) return;
+    nabu_quiet_ = now_ms + 20000;
+    anim(cb_look_x, look_x_, nabu_look_x_, 200);  // to where Nabu stands
+    anim(cb_look_y, look_y_, nabu_look_y_, 200);
+    next_look_ = now_ms + 4500;
+    if (rnd(2)) {
+      for_a_while(ANNOYED, 4500);
+      show_sign(txt::SHOW_OFF, 3);
     } else {
-      zeitweise(UEBERRASCHT, 3500);
+      for_a_while(SURPRISED, 3500);
       anim(cb_hop, 0, 8, 150, 150, 1, lv_anim_path_ease_out);
-      if (zufall(2)) zeige_schild(zufall(2) ? "Ooh!" : "Wie machst du das?", 3);
+      if (rnd(2)) show_sign(rnd(2) ? txt::OOH : txt::HOW_DO_YOU, 3);
     }
   }
 
-  // alle 50 ms aus dem YAML
+  // every 50 ms from the YAML
   void tick() {
-    if (!sichtbar_) return;
-    uint32_t jetzt = esphome::millis();
-    if (schlaeft_) {  // schläft: nur atmen, Deko und Wetter laufen weiter
-      schlaf_tick(jetzt);
-      deko_tick(jetzt);
-      wetter_tick(jetzt);
-      tentakel_tick(jetzt);
+    if (!visible_) return;
+    uint32_t now_ms = esphome::millis();
+    if (sleeping_) {  // sleeping: only breathing, decoration and weather keep running
+      sleep_tick(now_ms);
+      decor_tick(now_ms);
+      weather_tick(now_ms);
+      tentacle_tick(now_ms);
       return;
     }
-    if (verreist_) {  // Koffer wippt leicht, sonst passiert nichts
-      if (koffer_) lv_obj_set_y(koffer_, (jetzt / 700) % 2 ? -1 : 0);
-      deko_tick(jetzt);
-      wetter_tick(jetzt);
+    if (away_) {  // suitcase rocks slightly, nothing else happens
+      if (suitcase_) lv_obj_set_y(suitcase_, (now_ms / 700) % 2 ? -1 : 0);
+      decor_tick(now_ms);
+      weather_tick(now_ms);
       return;
     }
-    tentakel_tick(jetzt);
-    deko_tick(jetzt);
-    wetter_tick(jetzt);
-    timer_tick(jetzt);
-    effekt_tick(jetzt);
-    patzer_tick(jetzt);
-    tinte_tick(jetzt);
-    faust_tick(jetzt);
-    zahlen_tick();
-    maus_tick(jetzt);
-    glitch_tick(jetzt);
-    matrix_tick(jetzt);
-    spezial2_tick(jetzt);
-    schreck_tick(jetzt);
-    if (hilfe_bis_ && vorbei(jetzt, hilfe_bis_)) hilfe(false);
-    if (spiele_bis_ && vorbei(jetzt, spiele_bis_)) spiele_menue(false);
-    if (schmuck_an_ && schmuck_glanz_)  // Bling: Glanzpunkt blitzt kurz auf
-      lv_obj_set_style_bg_opa(schmuck_glanz_, (jetzt / 120) % 18 < 2 ? LV_OPA_COVER : 90, 0);
-    spezial3_tick(jetzt);
-    herzen_tick(jetzt);
-    if (vorbei(jetzt, nabu_gruss_bei_)) {
-      nabu_gruss_bei_ = 0;
-      zeitweise(FROH, 3000);
-      winken(2500);
-      zeige_schild("Oh, Besuch!", 3);
+    tentacle_tick(now_ms);
+    decor_tick(now_ms);
+    weather_tick(now_ms);
+    timer_tick(now_ms);
+    effect_tick(now_ms);
+    blunder_tick(now_ms);
+    ink_tick(now_ms);
+    fist_tick(now_ms);
+    counts_tick();
+    mouse_tick(now_ms);
+    glitch_tick(now_ms);
+    matrix_tick(now_ms);
+    special2_tick(now_ms);
+    scare_tick(now_ms);
+    if (help_until_ && passed(now_ms, help_until_)) help(false);
+    if (games_until_ && passed(now_ms, games_until_)) games_menu(false);
+    if (jewelry_on_ && jewelry_shine_)  // bling: the shine dot flashes briefly
+      lv_obj_set_style_bg_opa(jewelry_shine_, (now_ms / 120) % 18 < 2 ? LV_OPA_COVER : 90, 0);
+    special3_tick(now_ms);
+    hearts_tick(now_ms);
+    if (passed(now_ms, nabu_greet_at_)) {
+      nabu_greet_at_ = 0;
+      for_a_while(HAPPY, 3000);
+      wave(2500);
+      show_sign(txt::VISITOR, 3);
     }
-    if (vorbei(jetzt, nabu_geht_bei_)) {
-      nabu_geht_bei_ = 0;
+    if (passed(now_ms, nabu_leaves_at_)) {
+      nabu_leaves_at_ = 0;
       anim(cb_nabu, 248, 330, 1800, 0, 1, lv_anim_path_ease_in);
-      nabu_weg_bei_ = jetzt + 1900;
+      nabu_gone_at_ = now_ms + 1900;
     }
-    if (vorbei(jetzt, nabu_weg_bei_)) {
-      nabu_weg_bei_ = 0;
-      zeigen(nabu_mini_, false);
+    if (passed(now_ms, nabu_gone_at_)) {
+      nabu_gone_at_ = 0;
+      show(nabu_mini_, false);
     }
-    if (vorbei(jetzt, besuch_los_)) {
-      besuch_los_ = 0;
-      zappeln_bis_ = jetzt + 1600;
-      anim(cb_besuch, 0, 340, 1600, 0, 1, lv_anim_path_ease_in);
+    if (passed(now_ms, visit_leave_)) {
+      visit_leave_ = 0;
+      wiggle_until_ = now_ms + 1600;
+      anim(cb_visit, 0, 340, 1600, 0, 1, lv_anim_path_ease_in);
     }
-    if (vorbei(jetzt, besuch_zurueck_)) {
-      besuch_zurueck_ = 0;
-      zappeln_bis_ = jetzt + 1600;
-      anim(cb_besuch, -340, 0, 1600, 0, 1, lv_anim_path_ease_out);
-      zeitweise(FROH, 3000);
+    if (passed(now_ms, visit_return_)) {
+      visit_return_ = 0;
+      wiggle_until_ = now_ms + 1600;
+      anim(cb_visit, -340, 0, 1600, 0, 1, lv_anim_path_ease_out);
+      for_a_while(HAPPY, 3000);
     }
-    if (requisit_ == 6 && tuete_ != nullptr) {  // Rauch steigt, wird größer, fängt unten neu an
+    if (prop_id_ == 6 && joint_ != nullptr) {  // smoke rises, grows, starts again at the bottom
       for (int k = 0; k < 3; k++) {
-        int t = (int) ((jetzt / 40 + k * 25) % 75);
-        lv_obj_set_pos(rauch_[k], plan_->mund_x + 32 + t / 6 + (int) (4 * sinf(t / 8.0f)) - t / 6, plan_->mund_y - 10 - t);
-        lv_obj_set_size(rauch_[k], 8 + t / 3, 8 + t / 3);
-        lv_obj_set_style_bg_opa(rauch_[k], (lv_opa_t) (200 - t * 2), 0);
+        int t = (int) ((now_ms / 40 + k * 25) % 75);
+        lv_obj_set_pos(smoke_[k], plan_->mouth_x + 32 + t / 6 + (int) (4 * sinf(t / 8.0f)) - t / 6, plan_->mouth_y - 10 - t);
+        lv_obj_set_size(smoke_[k], 8 + t / 3, 8 + t / 3);
+        lv_obj_set_style_bg_opa(smoke_[k], (lv_opa_t) (200 - t * 2), 0);
       }
     }
-    if (requisit_bis_ && vorbei(jetzt, requisit_bis_)) {
-      requisit_bis_ = 0;
-      requisit_ = 0;
-      requisit_layout();
+    if (prop_until_ && passed(now_ms, prop_until_)) {
+      prop_until_ = 0;
+      prop_id_ = 0;
+      props_layout();
     }
-    spiel_tick(jetzt);
-    if (frage_aktiv_) {
-      if (vorbei(jetzt, frage_bis_)) {
-        frage_beenden("");
-      } else if (!frage_gezeigt_ && !gedrueckt_) {
-        frage_gezeigt_ = true;
-        schilder_.clear();
-        zeitweise(UEBERRASCHT, 1500);
-        anim(cb_blick_x, blick_x_, 0, 200);
-        anim(cb_blick_y, blick_y_, 2, 200);
-        lv_label_set_text(schild_text_, frage_text_.c_str());
-        anim(cb_schild, schild_y_, SCHILD_DA, 380, 0, 1, lv_anim_path_overshoot);
+    game_tick(now_ms);
+    if (question_active_) {
+      if (passed(now_ms, question_until_)) {
+        end_question("");
+      } else if (!question_shown_ && !pressed_) {
+        question_shown_ = true;
+        signs_.clear();
+        for_a_while(SURPRISED, 1500);
+        anim(cb_look_x, look_x_, 0, 200);
+        anim(cb_look_y, look_y_, 2, 200);
+        lv_label_set_text(sign_text_, question_text_.c_str());
+        anim(cb_sign, sign_y_, SIGN_SHOWN, 380, 0, 1, lv_anim_path_overshoot);
         anim(cb_arm, arm_pos_, 100, 400);
-        schild_bis_ = frage_bis_;  // Schild bleibt bis zur Antwort
-        for (int i = 0; i < 2; i++) lv_label_set_text(frage_lbl_[i], frage_opt_[i].c_str());
-        lv_obj_move_foreground(frage_box_);
-        zeigen(frage_box_, true);
+        sign_until_ = question_until_;  // sign stays until the answer
+        for (int i = 0; i < 2; i++) lv_label_set_text(question_lbl_[i], question_opt_[i].c_str());
+        lv_obj_move_foreground(question_box_);
+        show(question_box_, true);
         if (led) led(0x4AA8FF, 0.4f);
-        led_aus_bei_ = jetzt + 1500;
+        led_off_at_ = now_ms + 1500;
       }
     }
-    if (brief_offen_bis_ && vorbei(jetzt, brief_offen_bis_)) {
-      brief_offen_bis_ = 0;
-      klappe(false);
-      brief_layout();
+    if (letter_open_until_ && passed(now_ms, letter_open_until_)) {
+      letter_open_until_ = 0;
+      flap(false);
+      letter_layout();
     }
-    if (vorbei(jetzt, led_aus_bei_)) {
-      led_aus_bei_ = 0;
+    if (passed(now_ms, led_off_at_)) {
+      led_off_at_ = 0;
       if (led) led(0, 0);
     }
-    if (vorbei(jetzt, nachher_bei_)) {
-      nachher_bei_ = 0;
-      zeige_schild(nachher_text_, 3);
+    if (passed(now_ms, later_at_)) {
+      later_at_ = 0;
+      show_sign(later_text_, 3);
     }
-    if (vorbei(jetzt, ausdruck_bis_)) {
-      ausdruck_bis_ = 0;
-      ausdruck_setzen(basis_);
+    if (passed(now_ms, expression_until_)) {
+      expression_until_ = 0;
+      apply_expression(base_);
     }
-    if (vorbei(jetzt, schild_bis_)) {
-      schild_bis_ = 0;
-      if (!schilder_.empty()) {  // nächstes Schild der Folge direkt hinterher
-        zeige_schild(schilder_.front(), schild_dauer_);
-        schilder_.pop_front();
-      } else if (art_ == OKTI && zufall(6) == 0) {  // tollpatschig: Schild rutscht ihm nach unten weg
-        anim(cb_schild, schild_y_, 250, 450, 0, 1, lv_anim_path_ease_in);
+    if (passed(now_ms, sign_until_)) {
+      sign_until_ = 0;
+      if (!signs_.empty()) {  // next sign of the sequence right after
+        show_sign(signs_.front(), sign_duration_);
+        signs_.pop_front();
+      } else if (kind_ == OKTI && rnd(6) == 0) {  // clumsy: the sign slips down out of his arms
+        anim(cb_sign, sign_y_, 250, 450, 0, 1, lv_anim_path_ease_in);
         anim(cb_arm, arm_pos_, 0, 300);
-        zeitweise(UEBERRASCHT, 1300);
-        zappeln_bis_ = jetzt + 800;
+        for_a_while(SURPRISED, 1300);
+        wiggle_until_ = now_ms + 800;
       } else {
-        anim(cb_schild, schild_y_, SCHILD_WEG, 300, 0, 1, lv_anim_path_ease_in);
+        anim(cb_sign, sign_y_, SIGN_HIDDEN, 300, 0, 1, lv_anim_path_ease_in);
         anim(cb_arm, arm_pos_, 0, 400);
       }
     }
-    // Wartende Nachricht: alle paar Sekunden winken, hüpfen, „!“; LED pulsiert
-    if (!post_.empty() && !gedrueckt_ && vorbei(jetzt, naechster_ruf_)) {
-      naechster_ruf_ = jetzt + 7000;
-      if (!schild_bis_) {
-        zeitweise(UEBERRASCHT, 1500);
-        winken(2500);
+    // waiting message: every few seconds wave, hop, "!"; LED pulses
+    if (!post_.empty() && !pressed_ && passed(now_ms, next_call_)) {
+      next_call_ = now_ms + 7000;
+      if (!sign_until_) {
+        for_a_while(SURPRISED, 1500);
+        wave(2500);
         anim(cb_hop, 0, 10, 150, 150, 2, lv_anim_path_ease_out);
-        anim(cb_blick_x, blick_x_, 0, 200);  // zum Betrachter
-        anim(cb_blick_y, blick_y_, 2, 200);
-        naechster_blick_ = jetzt + 4000;
-        bool post_text = (rufe_++ % 2) == 0;
-        bool liebe = ist_liebe(post_.front());
-        std::string t = post_text ? (liebe ? std::string(art_ == FUCHS ? "Psst. Ein Liebesbrief!" : "Liebesbrief!")
-                                     : post_.size() > 1 ? esphome::str_sprintf("%d x Post für dich!", (int) post_.size())
-                                                        : std::string("Post für dich!"))
-                                  : std::string("Tipp mich an!");
-        zeige_schild(t, 3);
+        anim(cb_look_x, look_x_, 0, 200);  // at the viewer
+        anim(cb_look_y, look_y_, 2, 200);
+        next_look_ = now_ms + 4000;
+        bool post_line = (calls_++ % 2) == 0;
+        bool love = is_love(post_.front());
+        std::string t = post_line ? (love ? std::string(kind_ == FOX ? txt::LOVE_LETTER_FOX : txt::LOVE_LETTER)
+                                     : post_.size() > 1 ? esphome::str_sprintf(txt::POST_COUNT, (int) post_.size())
+                                                        : std::string(txt::POST))
+                                  : std::string(txt::TAP_ME);
+        show_sign(t, 3);
       }
       if (led) led(0xFFB020, 0.5f);
-      led_aus_bei_ = jetzt + 900;
+      led_off_at_ = now_ms + 900;
     }
-    if (gedrueckt_ || streichel_aktiv_) return;
-    langeweile(jetzt);
-    if (vorbei(jetzt, naechstes_blinzeln_)) {
-      if (augen_rund() && augen_h_ >= 10) anim(cb_blinzel, 0, 100, 70, 90, zufall(5) == 0 ? 2 : 1);
-      naechstes_blinzeln_ = jetzt + (1800 + zufall(4500)) * (130 - anspannung_ * 8 / 10) / 100;  // nervös blinzelt öfter
+    if (pressed_ || petting_active_) return;
+    boredom(now_ms);
+    if (passed(now_ms, next_blink_)) {
+      if (eyes_round() && eyes_h_ >= 10) anim(cb_blink, 0, 100, 70, 90, rnd(5) == 0 ? 2 : 1);
+      next_blink_ = now_ms + (1800 + rnd(4500)) * (130 - tension_ * 8 / 10) / 100;  // nervous blinks more often
     }
-    if (vorbei(jetzt, naechster_blick_)) {
-      if (ausdruck_ != SCHLAF) {
+    if (passed(now_ms, next_look_)) {
+      if (expression_ != ASLEEP) {
         int tx = 0, ty = 0;
-        if (schmollen_) {  // schaut beleidigt weg, linst nur selten herüber
-          tx = zufall(6) ? -12 : -4;
+        if (sulking_) {  // looks away offended, only rarely peeks over
+          tx = rnd(6) ? -12 : -4;
           ty = 3;
-        } else if (zufall(100) >= 45) {
-          tx = (int) zufall(25) - 12;
-          ty = (int) zufall(13) - 6;
+        } else if (rnd(100) >= 45) {
+          tx = (int) rnd(25) - 12;
+          ty = (int) rnd(13) - 6;
         }
-        anim(cb_blick_x, blick_x_, tx, 260);
-        anim(cb_blick_y, blick_y_, ty, 260);
+        anim(cb_look_x, look_x_, tx, 260);
+        anim(cb_look_y, look_y_, ty, 260);
       }
-      naechster_blick_ = jetzt + (1500 + zufall(5000)) * (130 - anspannung_ * 9 / 10) / 100;  // nervös schaut hektisch
+      next_look_ = now_ms + (1500 + rnd(5000)) * (130 - tension_ * 9 / 10) / 100;  // nervous looks around hectically
     }
-    if (vorbei(jetzt, naechste_idee_)) {
-      if (!ausdruck_bis_ && !schild_bis_ && ausdruck_ != SCHLAF) idee();
-      naechste_idee_ = jetzt + 12000 + zufall(25000);
+    if (passed(now_ms, next_idea_)) {
+      if (!expression_until_ && !sign_until_ && expression_ != ASLEEP) idea();
+      next_idea_ = now_ms + 12000 + rnd(25000);
     }
   }
 
  protected:
   using Cb = void (*)(void *, int32_t);
 
-  static lv_obj_t *form(lv_obj_t *eltern, int x, int y, int w, int h, uint32_t farbe,
+  static lv_obj_t *shape(lv_obj_t *parent, int x, int y, int w, int h, uint32_t color,
                         int radius = LV_RADIUS_CIRCLE) {
-    lv_obj_t *o = lv_obj_create(eltern);
+    lv_obj_t *o = lv_obj_create(parent);
     lv_obj_remove_style_all(o);
     lv_obj_clear_flag(o, (lv_obj_flag_t) (LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
     lv_obj_set_pos(o, x, y);
     lv_obj_set_size(o, w, h);
-    lv_obj_set_style_bg_color(o, lv_color_hex(farbe), 0);
+    lv_obj_set_style_bg_color(o, lv_color_hex(color), 0);
     lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(o, radius, 0);
     return o;
   }
-  static void rand(lv_obj_t *o, int breite, uint32_t farbe) {
-    lv_obj_set_style_border_width(o, breite, 0);
-    lv_obj_set_style_border_color(o, lv_color_hex(farbe), 0);
+  static void border(lv_obj_t *o, int width_px, uint32_t color) {
+    lv_obj_set_style_border_width(o, width_px, 0);
+    lv_obj_set_style_border_color(o, lv_color_hex(color), 0);
   }
-  static lv_obj_t *bogen(lv_obj_t *eltern, int groesse, int breite, uint32_t farbe) {
-    lv_obj_t *a = lv_arc_create(eltern);
+  static lv_obj_t *arc(lv_obj_t *parent, int size_px, int width_px, uint32_t color) {
+    lv_obj_t *a = lv_arc_create(parent);
     lv_obj_remove_style_all(a);
     lv_obj_clear_flag(a, (lv_obj_flag_t) (LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
-    lv_obj_set_size(a, groesse, groesse);
-    lv_obj_set_style_arc_width(a, breite, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(a, lv_color_hex(farbe), LV_PART_MAIN);
+    lv_obj_set_size(a, size_px, size_px);
+    lv_obj_set_style_arc_width(a, width_px, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(a, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_arc_rounded(a, true, LV_PART_MAIN);
     lv_obj_set_style_arc_opa(a, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_arc_opa(a, LV_OPA_TRANSP, LV_PART_INDICATOR);
     return a;
   }
-  // Linie (Arm, Augenbraue); Punkte gehören dem Aufrufer und müssen leben bleiben
-  static lv_obj_t *linie(lv_obj_t *eltern, int breite, uint32_t farbe) {
-    lv_obj_t *l = lv_line_create(eltern);
+  // line (arm, eyebrow); the points belong to the caller and must stay alive
+  static lv_obj_t *line(lv_obj_t *parent, int width_px, uint32_t color) {
+    lv_obj_t *l = lv_line_create(parent);
     lv_obj_remove_style_all(l);
     lv_obj_clear_flag(l, (lv_obj_flag_t) (LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
     lv_obj_set_pos(l, 0, 0);
-    lv_obj_set_style_line_width(l, breite, 0);
-    lv_obj_set_style_line_color(l, lv_color_hex(farbe), 0);
+    lv_obj_set_style_line_width(l, width_px, 0);
+    lv_obj_set_style_line_color(l, lv_color_hex(color), 0);
     lv_obj_set_style_line_rounded(l, true, 0);
     lv_obj_set_style_line_opa(l, LV_OPA_COVER, 0);
     return l;
   }
-  // Linie für Glieder (Roboterarm, Fuchsschwanz) auf großer Fläche, Punkte + (ARM_DX, ARM_DY)
-  static lv_obj_t *glied(lv_obj_t *eltern, int breite, uint32_t farbe) {
-    lv_obj_t *l = linie(eltern, breite, farbe);
+  // line for segments (robot arm, fox tail) on a large area, points + (ARM_DX, ARM_DY)
+  static lv_obj_t *segment_line(lv_obj_t *parent, int width_px, uint32_t color) {
+    lv_obj_t *l = line(parent, width_px, color);
     lv_obj_set_pos(l, -ARM_DX, -ARM_DY);
     lv_obj_set_size(l, 360, 300);
     return l;
   }
-  // Gefülltes Dreieck aus 5 dicken Linien von der Spitze zur Grundseite (keine Drehung, kein eigenes Zeichnen)
-  static void dreieck_linien(lv_obj_t *eltern, int ax, int ay, int bx1, int by1, int bx2, int by2, uint32_t farbe,
-                             int breite, lv_point_precise_t (*pkt)[2]) {
+  // filled triangle from 5 thick lines from the tip to the base (no rotation, no custom drawing)
+  static void triangle_lines(lv_obj_t *parent, int ax, int ay, int bx1, int by1, int bx2, int by2, uint32_t color,
+                             int width_px, lv_point_precise_t (*pts)[2]) {
     for (int k = 0; k < 5; k++) {
-      pkt[k][0].x = ax + ARM_DX;
-      pkt[k][0].y = ay + ARM_DY;
-      pkt[k][1].x = bx1 + (bx2 - bx1) * k / 4 + ARM_DX;
-      pkt[k][1].y = by1 + (by2 - by1) * k / 4 + ARM_DY;
-      lv_obj_t *l = glied(eltern, breite, farbe);
-      lv_line_set_points(l, pkt[k], 2);
+      pts[k][0].x = ax + ARM_DX;
+      pts[k][0].y = ay + ARM_DY;
+      pts[k][1].x = bx1 + (bx2 - bx1) * k / 4 + ARM_DX;
+      pts[k][1].y = by1 + (by2 - by1) * k / 4 + ARM_DY;
+      lv_obj_t *l = segment_line(parent, width_px, color);
+      lv_line_set_points(l, pts[k], 2);
     }
   }
-  static void zeigen(lv_obj_t *o, bool an) {
+  static void show(lv_obj_t *o, bool on) {
     if (o == nullptr) return;
-    if (an)
+    if (on)
       lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
     else
       lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
@@ -1002,66 +1002,66 @@ class Figur {
     lv_obj_add_flag(o, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
   }
 
-  // Baut die Figur nach plan_ (neu), alles hängt an koerper_
-  void figur_bauen();
+  // builds the character from plan_ (new), everything hangs on body_
+  void build_figure();
 
-  void anim(Cb cb, int32_t von, int32_t bis, uint32_t ms, uint32_t zurueck_ms = 0, uint32_t wdh = 1,
-            lv_anim_path_cb_t pfad = lv_anim_path_ease_in_out) {
+  void anim(Cb cb, int32_t from, int32_t until, uint32_t ms, uint32_t back_ms = 0, uint32_t repeats = 1,
+            lv_anim_path_cb_t path = lv_anim_path_ease_in_out) {
     lv_anim_delete(this, cb);
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, this);
     lv_anim_set_exec_cb(&a, cb);
-    lv_anim_set_values(&a, von, bis);
+    lv_anim_set_values(&a, from, until);
     lv_anim_set_duration(&a, ms);
-    if (zurueck_ms) lv_anim_set_playback_duration(&a, zurueck_ms);
-    lv_anim_set_repeat_count(&a, wdh);
-    lv_anim_set_path_cb(&a, pfad);
+    if (back_ms) lv_anim_set_playback_duration(&a, back_ms);
+    lv_anim_set_repeat_count(&a, repeats);
+    lv_anim_set_path_cb(&a, path);
     lv_anim_start(&a);
   }
 
-  static void cb_rand(lv_event_t *e) { lv_event_set_ext_draw_size(e, 110); }
-  static void cb_nabu(void *v, int32_t x) {  // Mini-Nabu läuft (leichtes Wippen beim Gehen)
-    auto *f = (Figur *) v;
+  static void cb_border(lv_event_t *e) { lv_event_set_ext_draw_size(e, 110); }
+  static void cb_nabu(void *v, int32_t x) {  // mini Nabu walks (slight bobbing while walking)
+    auto *f = (Companion *) v;
     lv_obj_set_pos(f->nabu_mini_, x, 150 - (int) (3 * fabsf(sinf(x / 6.0f))));
   }
-  static void cb_besuch(void *v, int32_t x) {
-    auto *f = (Figur *) v;
-    f->besuch_x_ = x;
-    f->koerper_layout();
-    for (int i = 0; i < 2; i++)  // Fuchspfoten tippeln beim Laufen
-      if (f->pfote_[i]) lv_obj_set_y(f->pfote_[i], 156 - (x == 0 ? 0 : (int) (5 * fabsf(sinf(x / 14.0f + i * 1.57f)))));
+  static void cb_visit(void *v, int32_t x) {
+    auto *f = (Companion *) v;
+    f->visit_x_ = x;
+    f->body_layout();
+    for (int i = 0; i < 2; i++)  // fox paws patter while walking
+      if (f->paw_[i]) lv_obj_set_y(f->paw_[i], 156 - (x == 0 ? 0 : (int) (5 * fabsf(sinf(x / 14.0f + i * 1.57f)))));
   }
-  static void cb_blinzel(void *v, int32_t x) { auto *f = (Figur *) v; f->blinzel_ = x; f->augen_layout(); }
-  static void cb_blick_x(void *v, int32_t x) { auto *f = (Figur *) v; f->blick_x_ = x; f->gesicht_layout(); }
-  static void cb_blick_y(void *v, int32_t x) { auto *f = (Figur *) v; f->blick_y_ = x; f->gesicht_layout(); }
-  static void cb_hop(void *v, int32_t x) { auto *f = (Figur *) v; f->hop_ = x; f->koerper_layout(); }
-  static void cb_atem(void *v, int32_t x) { auto *f = (Figur *) v; f->atem_ = x; f->koerper_layout(); }
-  static void cb_arm(void *v, int32_t x) { auto *f = (Figur *) v; f->arm_pos_ = x; f->arme_layout(); }
-  static void cb_schild_dreh(void *v, int32_t x) { lv_obj_set_style_transform_rotation(((Figur *) v)->schild_, x, 0); }
-  static void cb_schild(void *v, int32_t x) { auto *f = (Figur *) v; f->schild_y_ = x; f->schild_layout(); }
-  static void cb_wackel(void *v, int32_t x) {  // 0..1000 → drei Schwingungen, endet bei 0
-    auto *f = (Figur *) v;
-    f->wackel_ = (int) lroundf(6.0f * sinf(x / 1000.0f * 6.2832f * 3));
-    f->koerper_layout();
+  static void cb_blink(void *v, int32_t x) { auto *f = (Companion *) v; f->blink_ = x; f->eyes_layout(); }
+  static void cb_look_x(void *v, int32_t x) { auto *f = (Companion *) v; f->look_x_ = x; f->face_layout(); }
+  static void cb_look_y(void *v, int32_t x) { auto *f = (Companion *) v; f->look_y_ = x; f->face_layout(); }
+  static void cb_hop(void *v, int32_t x) { auto *f = (Companion *) v; f->hop_ = x; f->body_layout(); }
+  static void cb_breath(void *v, int32_t x) { auto *f = (Companion *) v; f->breath_ = x; f->body_layout(); }
+  static void cb_arm(void *v, int32_t x) { auto *f = (Companion *) v; f->arm_pos_ = x; f->arms_layout(); }
+  static void cb_sign_rotate(void *v, int32_t x) { lv_obj_set_style_transform_rotation(((Companion *) v)->sign_, x, 0); }
+  static void cb_sign(void *v, int32_t x) { auto *f = (Companion *) v; f->sign_y_ = x; f->sign_layout(); }
+  static void cb_wobble(void *v, int32_t x) {  // 0..1000 → three swings, ends at 0
+    auto *f = (Companion *) v;
+    f->wobble_ = (int) lroundf(6.0f * sinf(x / 1000.0f * 6.2832f * 3));
+    f->body_layout();
   }
-  static void cb_schuetteln(void *v, int32_t x) {  // 0..1000 → zweimal links/rechts, endet mittig
-    auto *f = (Figur *) v;
-    f->blick_x_ = (int) lroundf(11.0f * sinf(x / 1000.0f * 6.2832f * 2));
-    f->gesicht_layout();
+  static void cb_shake(void *v, int32_t x) {  // 0..1000 → twice left/right, ends in the middle
+    auto *f = (Companion *) v;
+    f->look_x_ = (int) lroundf(11.0f * sinf(x / 1000.0f * 6.2832f * 2));
+    f->face_layout();
   }
-  static void cb_spirale(void *v, int32_t x) {
-    auto *f = (Figur *) v;
-    for (int i = 0; i < 2; i++) lv_arc_set_rotation(f->spirale_[i], i ? 360 - x : x);
+  static void cb_spiral(void *v, int32_t x) {
+    auto *f = (Companion *) v;
+    for (int i = 0; i < 2; i++) lv_arc_set_rotation(f->spiral_[i], i ? 360 - x : x);
   }
   static void cb_zzz(void *v, int32_t x) {
-    auto *f = (Figur *) v;
+    auto *f = (Companion *) v;
     lv_obj_set_y(f->zzz_, f->plan_->zzz_y - x);
   }
 
   static void cb_touch(lv_event_t *e) {
-    auto *f = (Figur *) lv_event_get_user_data(e);
-    if (!f->sichtbar_) return;
+    auto *f = (Companion *) lv_event_get_user_data(e);
+    if (!f->visible_) return;
     lv_event_code_t code = lv_event_get_code(e);
     if (code != LV_EVENT_PRESSED && code != LV_EVENT_PRESSING && code != LV_EVENT_RELEASED &&
         code != LV_EVENT_PRESS_LOST)
@@ -1070,502 +1070,502 @@ class Figur {
     if (indev == nullptr) return;
     lv_point_t p;
     lv_indev_get_point(indev, &p);
-    uint32_t jetzt = esphome::millis();
+    uint32_t now_ms = esphome::millis();
     if (code == LV_EVENT_PRESSED) {
-      if (f->faust_bis_ && abs((int) p.x - 160) < 50 && abs((int) p.y - FAUST_Y) < 45) {  // Faustgruß erwidert
-        f->abgeholt_bis_ = jetzt + 800;
-        f->faust_treffer(jetzt);
+      if (f->fist_until_ && abs((int) p.x - 160) < 50 && abs((int) p.y - FIST_Y) < 45) {  // fist bump returned
+        f->collected_until_ = now_ms + 800;
+        f->fist_hit(now_ms);
         return;
       }
-      if (f->spiel_ != KEIN_SPIEL) {
-        f->abgeholt_bis_ = jetzt + 800;
-        f->spiel_tipp(p, jetzt);
+      if (f->game_ != NO_GAME) {
+        f->collected_until_ = now_ms + 800;
+        f->game_tap(p, now_ms);
         return;
       }
-      if (f->frage_aktiv_ && f->frage_gezeigt_ && p.y >= 180) {  // Antwortfeld getippt
-        std::string a = f->frage_opt_[p.x < 160 ? 0 : 1];
-        f->abgeholt_bis_ = jetzt + 800;
-        f->frage_beenden(a);
-        f->zeitweise(FROH, 1800);
-        f->nachher_text_ = "Danke!";
-        f->nachher_bei_ = jetzt + 600;
-      } else if (f->timer_klingelt_) {  // Klingeln aus (auch bei Nabu)
-        f->timer_klingelt_ = false;
-        f->abgeholt_bis_ = jetzt + 800;
-        f->zeitweise(MUEDE, 1500);
-        f->zeige_schild("Okay, okay.", 2);
-        if (f->timer_aus) f->timer_aus();
-      } else if (!f->post_.empty()) {  // Nachricht abholen statt anstupsen
-        f->abgeholt_bis_ = jetzt + 800;
-        f->post_abspielen();
+      if (f->question_active_ && f->question_shown_ && p.y >= 180) {  // answer field tapped
+        std::string a = f->question_opt_[p.x < 160 ? 0 : 1];
+        f->collected_until_ = now_ms + 800;
+        f->end_question(a);
+        f->for_a_while(HAPPY, 1800);
+        f->later_text_ = txt::THANKS;
+        f->later_at_ = now_ms + 600;
+      } else if (f->timer_ringing_) {  // ringing off (also on the voice assistant)
+        f->timer_ringing_ = false;
+        f->collected_until_ = now_ms + 800;
+        f->for_a_while(TIRED, 1500);
+        f->show_sign(txt::OKAY_OKAY, 2);
+        if (f->timer_off) f->timer_off();
+      } else if (!f->post_.empty()) {  // collect the message instead of poking
+        f->collected_until_ = now_ms + 800;
+        f->play_post();
       }
-      f->gedrueckt_ = true;
+      f->pressed_ = true;
       f->start_ = p;
-      f->letzte_beruehrung_ = jetzt;
-      if (!f->schmollen_) f->lw_stufe_ = 0;
-      if (!f->schmollen_ && (f->basis_ == MUEDE || f->basis_ == SCHLAF)) {
-        f->basis_ = NORMAL;
-        if (!f->ausdruck_bis_) f->ausdruck_setzen(NORMAL);
+      f->last_touch_ = now_ms;
+      if (!f->sulking_) f->bored_level_ = 0;
+      if (!f->sulking_ && (f->base_ == TIRED || f->base_ == ASLEEP)) {
+        f->base_ = NORMAL;
+        if (!f->expression_until_) f->apply_expression(NORMAL);
       }
-      f->finger_schauen(p);
-      f->greifen(p);
+      f->look_at_finger(p);
+      f->grab(p);
     } else if (code == LV_EVENT_PRESSING) {
-      if (!f->streichel_aktiv_ && abs((int) (p.x - f->start_.x)) + abs((int) (p.y - f->start_.y)) > 35) {
-        f->streichel_aktiv_ = true;
-        f->zahl_[STREICHELN]++;
-        f->greif_arm_ = -1;
-        if (f->gestreichelt)
-          f->gestreichelt(jetzt - f->letztes_schild_zeit_ < 15000 ? f->letztes_schild_ : std::string());
-        f->ausdruck_bis_ = 0;
-        f->ausdruck_setzen(FROH);
-        lv_obj_set_style_bg_opa(f->wange_[0], LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_opa(f->wange_[1], LV_OPA_COVER, 0);
+      if (!f->petting_active_ && abs((int) (p.x - f->start_.x)) + abs((int) (p.y - f->start_.y)) > 35) {
+        f->petting_active_ = true;
+        f->counts_[PETS]++;
+        f->grab_arm_ = -1;
+        if (f->petted)
+          f->petted(now_ms - f->last_sign_time_ < 15000 ? f->last_sign_ : std::string());
+        f->expression_until_ = 0;
+        f->apply_expression(HAPPY);
+        lv_obj_set_style_bg_opa(f->cheek_[0], LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_opa(f->cheek_[1], LV_OPA_COVER, 0);
         if (f->led) f->led(0xFF8A2A, 0.35f);
-        f->led_aus_bei_ = 0;
+        f->led_off_at_ = 0;
       }
-      if (f->streichel_aktiv_) {
-        f->zappeln_bis_ = jetzt + 400;
+      if (f->petting_active_) {
+        f->wiggle_until_ = now_ms + 400;
       } else {
-        f->finger_schauen(p);
-        f->greifen(p);
+        f->look_at_finger(p);
+        f->grab(p);
       }
     } else {
-      f->gedrueckt_ = false;
-      f->greif_arm_ = -1;
-      if (f->streichel_aktiv_) {
-        f->streichel_aktiv_ = false;
-        f->streichel_bis_ = jetzt + 700;
-        if (f->schmollen_ && ++f->versoehnt_ < 2) {  // erstes Streicheln: noch nicht ganz
-          f->zeitweise(GENERVT, 1500);
-          f->nachher_text_ = "Noch nicht ganz.";
-          f->nachher_bei_ = jetzt + 400;
+      f->pressed_ = false;
+      f->grab_arm_ = -1;
+      if (f->petting_active_) {
+        f->petting_active_ = false;
+        f->petting_until_ = now_ms + 700;
+        if (f->sulking_ && ++f->reconciled_ < 2) {  // first petting: not quite yet
+          f->for_a_while(ANNOYED, 1500);
+          f->later_text_ = txt::NOT_QUITE;
+          f->later_at_ = now_ms + 400;
           return;
         }
-        if (f->schmollen_) {  // zweites Streicheln: versöhnt
-          f->schmollen_ = false;
-          f->basis_ = NORMAL;
-          f->lw_stufe_ = 0;
-          f->roet_bis_ = jetzt + 4000;
-          f->nachher_text_ = "Na gut.";
-          f->nachher_bei_ = jetzt + 400;
+        if (f->sulking_) {  // second petting: made up
+          f->sulking_ = false;
+          f->base_ = NORMAL;
+          f->bored_level_ = 0;
+          f->blush_until_ = now_ms + 4000;
+          f->later_text_ = txt::FINE;
+          f->later_at_ = now_ms + 400;
         }
-        f->zeitweise(FROH, 2500);
-        f->zappeln_bis_ = jetzt + 1200;
-        f->led_aus_bei_ = jetzt + 2500;
+        f->for_a_while(HAPPY, 2500);
+        f->wiggle_until_ = now_ms + 1200;
+        f->led_off_at_ = now_ms + 2500;
       }
     }
   }
 
-  void finger_schauen(lv_point_t p) {
+  void look_at_finger(lv_point_t p) {
     int tx = std::max(-12, std::min(12, (int) (p.x - 160) / 10));
     int ty = std::max(-8, std::min(8, (int) (p.y - 130) / 12));
-    anim(cb_blick_x, blick_x_, tx, 120);
-    anim(cb_blick_y, blick_y_, ty, 120);
-    naechster_blick_ = esphome::millis() + 3000;
+    anim(cb_look_x, look_x_, tx, 120);
+    anim(cb_look_y, look_y_, ty, 120);
+    next_look_ = esphome::millis() + 3000;
   }
-  // Okti: der Arm, dessen Spitze dem Finger am nächsten ist, greift danach
-  void greifen(lv_point_t p) {
-    greif_x_ = (int) p.x - plan_->kx - wackel_;
-    greif_y_ = (int) p.y - (plan_->ky - hop_ - atem_);
-    if (art_ != OKTI) {  // Roboter/Fuchs: der näher liegende Arm bzw. die Pfote
-      greif_arm_ = greif_x_ < 90 ? 0 : 1;
+  // Okti: the arm whose tip is closest to the finger reaches for it
+  void grab(lv_point_t p) {
+    grab_x_ = (int) p.x - plan_->kx - wobble_;
+    grab_y_ = (int) p.y - (plan_->ky - hop_ - breath_);
+    if (kind_ != OKTI) {  // robot/fox: the closer arm or paw
+      grab_arm_ = grab_x_ < 90 ? 0 : 1;
       return;
     }
     float best = 1e9f;
-    for (int i = 0; i < ARME; i++) {
-      float w = ARM_WINKEL[i] * 0.017453f;
-      float sx = ARM_X[i] + ARM_LAENGE[i] * cosf(w), sy = ARM_Y + ARM_LAENGE[i] * sinf(w);
-      float d = (sx - greif_x_) * (sx - greif_x_) + (sy - greif_y_) * (sy - greif_y_);
+    for (int i = 0; i < ARMS; i++) {
+      float w = ARM_ANGLE[i] * 0.017453f;
+      float sx = ARM_X[i] + ARM_LENGTH[i] * cosf(w), sy = ARM_Y + ARM_LENGTH[i] * sinf(w);
+      float d = (sx - grab_x_) * (sx - grab_x_) + (sy - grab_y_) * (sy - grab_y_);
       if (d < best) {
         best = d;
-        greif_arm_ = i;
+        grab_arm_ = i;
       }
     }
   }
-  void winken(uint32_t ms) { winken_bis_ = esphome::millis() + ms; }
+  void wave(uint32_t ms) { wave_until_ = esphome::millis() + ms; }
 
-  // Text auf Schilder (je höchstens ~24 Zeichen, an Wortgrenzen) verteilen und nacheinander zeigen
-  void schilder_planen(const std::string &text, int sekunden);
+  // spread text over signs (at most ~24 characters each, at word boundaries) and show them one after another
+  void plan_signs(const std::string &text, int seconds);
 
-  void zeitweise(Ausdruck a, uint32_t ms) {
-    ausdruck_setzen(a);
-    ausdruck_bis_ = esphome::millis() + ms;
+  void for_a_while(Expression a, uint32_t ms) {
+    apply_expression(a);
+    expression_until_ = esphome::millis() + ms;
   }
-  void led_blitz(uint32_t farbe, uint32_t ms) {
+  void led_flash(uint32_t color, uint32_t ms) {
     if (!led) return;
-    led(farbe, 0.6f);
-    led_aus_bei_ = esphome::millis() + ms;
+    led(color, 0.6f);
+    led_off_at_ = esphome::millis() + ms;
   }
 
-  void idee() {
-    uint32_t r = zufall(100);
-    uint32_t jetzt = esphome::millis();
-    if (energie_ < 30 && zufall(3) == 0) {  // müde: gähnt oft, Augen halb zu
-      zeitweise(zufall(2) ? GAEHNEN : MUEDE, 2500);
+  void idea() {
+    uint32_t r = rnd(100);
+    uint32_t now_ms = esphome::millis();
+    if (energy_ < 30 && rnd(3) == 0) {  // tired: yawns often, eyes half closed
+      for_a_while(rnd(2) ? YAWN : TIRED, 2500);
       return;
     }
-    if (anspannung_ > 70 && zufall(3) == 0) {  // nervös: zuckt zusammen, schaut sich hektisch um
-      zeitweise(UEBERRASCHT, 700);
+    if (tension_ > 70 && rnd(3) == 0) {  // nervous: flinches, looks around hectically
+      for_a_while(SURPRISED, 700);
       anim(cb_hop, 0, 6, 90, 120, 1, lv_anim_path_ease_out);
-      anim(cb_blick_x, blick_x_, zufall(2) ? 12 : -12, 120);
-      naechster_blick_ = jetzt + 600;
-      if (zufall(4) == 0) zeige_schild(art_ == ROBOTER ? "Puls: hoch." : art_ == FUCHS ? "Alles ruhig. Oder?" : "Was war das?!", 3);
+      anim(cb_look_x, look_x_, rnd(2) ? 12 : -12, 120);
+      next_look_ = now_ms + 600;
+      if (rnd(4) == 0) show_sign(kind_ == ROBOT ? txt::PULSE_HIGH : kind_ == FOX ? txt::ALL_QUIET : txt::WHAT_WAS_THAT, 3);
       return;
     }
     if (r < 4) {
-      faustgruss();
-    } else if (r >= 6 && r < 9 && art_ == FUCHS) {  // Fuchs zeigt Mut (4–5 bleiben Special Move): richtet sich auf, schaut entschlossen nach vorn
-      ausdruck_bis_ = 0;
-      zeitweise(NORMAL, 3500);
+      fist_bump();
+    } else if (r >= 6 && r < 9 && kind_ == FOX) {  // fox shows courage (4–5 stay the special move): straightens up, looks ahead determined
+      expression_until_ = 0;
+      for_a_while(NORMAL, 3500);
       anim(cb_hop, 0, 8, 250, 600, 1, lv_anim_path_ease_out);
-      anim(cb_blick_x, blick_x_, 0, 200);
-      anim(cb_blick_y, blick_y_, -3, 200);
-      naechster_blick_ = jetzt + 4000;
-      zeigen_spaeter(SPRUECHE_FUCHS[zufall(sizeof(SPRUECHE_FUCHS) / sizeof(SPRUECHE_FUCHS[0]))], 500);
-    } else if (r < 8 && art_ != OKTI) {  // Special Move (Oktis Tinte bleibt eine Schreckreaktion)
-      spezial();
-    } else if (r < 6) {  // Okti: verknotet sich ab und zu
-      knoten();
-    } else if (r < 8) {  // Okti tollpatschig: stolpert über die eigenen Arme
-      zeitweise(SCHWINDLIG, 1400);
-      anim(cb_wackel, 0, 1000, 900);
+      anim(cb_look_x, look_x_, 0, 200);
+      anim(cb_look_y, look_y_, -3, 200);
+      next_look_ = now_ms + 4000;
+      show_later(txt::SAYINGS_FOX[rnd(sizeof(txt::SAYINGS_FOX) / sizeof(txt::SAYINGS_FOX[0]))], 500);
+    } else if (r < 8 && kind_ != OKTI) {  // special move (Okti's ink stays a fright reaction)
+      special();
+    } else if (r < 6) {  // Okti: ties himself in a knot now and then
+      knot();
+    } else if (r < 8) {  // clumsy Okti: trips over his own arms
+      for_a_while(DIZZY, 1400);
+      anim(cb_wobble, 0, 1000, 900);
       anim(cb_hop, 0, 6, 100, 140, 1, lv_anim_path_ease_out);
-      zappeln_bis_ = jetzt + 900;
-      nachher_text_ = zufall(2) ? "Hoppla." : "Wer hat den Arm da hingelegt?";
-      nachher_bei_ = jetzt + 1500;
+      wiggle_until_ = now_ms + 900;
+      later_text_ = rnd(2) ? txt::OOPS : txt::WHO_PUT_ARM;
+      later_at_ = now_ms + 1500;
     } else if (r < 22) {
       anim(cb_hop, 0, 10, 150, 150, 2, lv_anim_path_ease_out);
     } else if (r < 36) {
-      zeitweise(GAEHNEN, 2200);
+      for_a_while(YAWN, 2200);
     } else if (r < 48) {
-      anim(cb_wackel, 0, 1000, 1500);
-    } else if (r < 60 && (art_ == FUCHS || zufall(2))) {  // spazieren: raus nach rechts, von links wieder (Fuchs öfter)
-      besuch_los_ = jetzt + 100;
-      besuch_zurueck_ = jetzt + 7000;
+      anim(cb_wobble, 0, 1000, 1500);
+    } else if (r < 60 && (kind_ == FOX || rnd(2))) {  // a walk: out to the right, back from the left (fox more often)
+      visit_leave_ = now_ms + 100;
+      visit_return_ = now_ms + 7000;
     } else if (r < 60) {
-      winken(2500);
+      wave(2500);
     } else if (r < 72) {
-      anim(cb_blick_x, blick_x_, zufall(2) ? 12 : -12, 300);
-      naechster_blick_ = jetzt + 1800;
+      anim(cb_look_x, look_x_, rnd(2) ? 12 : -12, 300);
+      next_look_ = now_ms + 1800;
     } else if (r < 82) {
-      const char *s = spruch();
-      std::string z = zahlen_spruch();
-      if (!z.empty() && zufall(art_ == ROBOTER ? 2 : 3) == 0)
-        zeige_schild(z, 4);
-      else if (zufall(art_ == OKTI ? 3 : 5) == 0)
-        schild_patzer(s);
+      const char *s = saying();
+      std::string z = counts_saying();
+      if (!z.empty() && rnd(kind_ == ROBOT ? 2 : 3) == 0)
+        show_sign(z, 4);
+      else if (rnd(kind_ == OKTI ? 3 : 5) == 0)
+        sign_blunder(s);
       else
-        zeige_schild(s, 4);
+        show_sign(s, 4);
     } else {
-      anim(cb_blinzel, 0, 100, 70, 90, 2);
+      anim(cb_blink, 0, 100, 70, 90, 2);
     }
   }
 
-  bool augen_rund() const { return ausdruck_ != FROH && ausdruck_ != SCHWINDLIG; }
+  bool eyes_round() const { return expression_ != HAPPY && expression_ != DIZZY; }
 
-  // Okti-Farbe stufenlos: 0 = gelb (froh), 100 = rot (grummelig); Unterseite jeweils andersherum
-  void farbe(int st);
+  // Okti color, stepless: 0 = yellow (happy), 100 = red (grumpy); the underside the other way round
+  void color(int st);
 
-  void ausdruck_setzen(Ausdruck a);
+  void apply_expression(Expression a);
 
-  void spiel_beenden(const std::string &name, int wert);
-  int ttt_gewinner() const {  // 1 = du (X), 2 = Yellow (O), 3 = voll, 0 = läuft
+  void end_game(const std::string &name, int value);
+  int ttt_winner() const {  // 1 = you (X), 2 = Yellow (O), 3 = full, 0 = running
     static const int L[8][3] = {{0,1,2},{3,4,5},{6,7,8},{0,3,6},{1,4,7},{2,5,8},{0,4,8},{2,4,6}};
     for (auto &l : L)
       if (ttt_[l[0]] && ttt_[l[0]] == ttt_[l[1]] && ttt_[l[1]] == ttt_[l[2]]) return ttt_[l[0]];
     for (int f : ttt_) if (!f) return 0;
     return 3;
   }
-  void ttt_setzen(int i, int wer);
-  int ttt_zug() {  // gewinnen, blocken (nicht immer), Mitte, sonst zufällig
-    for (int wer : {2, 1})
+  void ttt_set(int i, int who);
+  int ttt_move() {  // win, block (not always), center, otherwise random
+    for (int who : {2, 1})
       for (int i = 0; i < 9; i++) {
         if (ttt_[i]) continue;
-        ttt_[i] = wer;
-        bool gut = ttt_gewinner() == wer;
+        ttt_[i] = who;
+        bool good = ttt_winner() == who;
         ttt_[i] = 0;
-        if (gut && (wer == 2 || zufall(100) < 85)) return i;
+        if (good && (who == 2 || rnd(100) < 85)) return i;
       }
     if (!ttt_[4]) return 4;
-    int frei[9], n = 0;
-    for (int i = 0; i < 9; i++) if (!ttt_[i]) frei[n++] = i;
-    return n ? frei[zufall(n)] : -1;
+    int free_cells[9], n = 0;
+    for (int i = 0; i < 9; i++) if (!ttt_[i]) free_cells[n++] = i;
+    return n ? free_cells[rnd(n)] : -1;
   }
-  void ttt_auswerten(uint32_t jetzt);
-  void simon_licht(int i, bool an);
-  void simon_zeigen_ab(uint32_t t);
-  void simon_ende(uint32_t jetzt);
-  void spiel_tick(uint32_t jetzt);
-  void spiel_tipp(lv_point_t p, uint32_t jetzt);
+  void ttt_evaluate(uint32_t now_ms);
+  void simon_light(int i, bool on);
+  void simon_show_from(uint32_t t);
+  void simon_end(uint32_t now_ms);
+  void game_tick(uint32_t now_ms);
+  void game_tap(lv_point_t p, uint32_t now_ms);
 
-  void frage_beenden(const std::string &a);
+  void end_question(const std::string &a);
 
-  // Effekte: eigene Zeiten plus automatisch – Streicheln → Erröten, Timer letzte 10 s / Spiel läuft → Schweiß,
-  // traurig → Träne
-  void effekt_tick(uint32_t jetzt) {
-    if (schweiss_ == nullptr) return;
-    auto an = [jetzt](uint32_t bis) { return bis && !vorbei(jetzt, bis); };
-    bool timer_knapp = timer_ende_ && !timer_klingelt_ && (int32_t) (timer_ende_ - jetzt) < 10000;
-    bool schweiss = an(schweiss_bis_) || timer_knapp || spiel_ != KEIN_SPIEL || anspannung_ >= 85;
-    bool traene = an(traene_bis_) || ausdruck_ == TRAURIG;
-    bool roet = an(roet_bis_) || streichelt();
-    bool funkel = an(funkel_bis_);
-    const Bauplan &p = *plan_;
-    zeigen(schweiss_, schweiss);
-    if (schweiss) {  // rinnt langsam die Schläfe hinunter, dann von vorn
-      int y = (int) (jetzt / 60 % 18);
-      lv_obj_set_pos(schweiss_, p.auge_x[1] + 26, p.auge_y - 38 + y);
+  // effects: own times plus automatic – petting → blush, timer last 10 s / game running → sweat,
+  // sad → tear
+  void effect_tick(uint32_t now_ms) {
+    if (sweat_ == nullptr) return;
+    auto on = [now_ms](uint32_t until) { return until && !passed(now_ms, until); };
+    bool timer_short = timer_end_ && !timer_ringing_ && (int32_t) (timer_end_ - now_ms) < 10000;
+    bool sweat = on(sweat_until_) || timer_short || game_ != NO_GAME || tension_ >= 85;
+    bool tear = on(tear_until_) || expression_ == SAD;
+    bool blush = on(blush_until_) || petting();
+    bool sparkle = on(sparkle_until_);
+    const Blueprint &p = *plan_;
+    show(sweat_, sweat);
+    if (sweat) {  // runs slowly down the temple, then from the start
+      int y = (int) (now_ms / 60 % 18);
+      lv_obj_set_pos(sweat_, p.eye_x[1] + 26, p.eye_y - 38 + y);
     }
-    zeigen(traene_, traene);
-    if (traene) {  // kullert vom Auge bis zur Wange
-      int y = (int) (jetzt / 45 % 30);
-      lv_obj_set_pos(traene_, p.auge_x[0] - 4, p.auge_y + 12 + y);
+    show(tear_, tear);
+    if (tear) {  // rolls from the eye to the cheek
+      int y = (int) (now_ms / 45 % 30);
+      lv_obj_set_pos(tear_, p.eye_x[0] - 4, p.eye_y + 12 + y);
     }
-    for (auto &w : roet_)
-      for (auto *s : w) zeigen(s, roet);
-    if (roet != roet_an_) {  // Wangen kräftig rosa; aus: ausdruck_setzen stellt die normale Deckkraft wieder her
-      roet_an_ = roet;
+    for (auto &w : blush_)
+      for (auto *s : w) show(s, blush);
+    if (blush != blush_on_) {  // cheeks strongly pink; off: apply_expression restores the normal opacity
+      blush_on_ = blush;
       for (int i = 0; i < 2; i++) {
-        lv_obj_set_style_bg_color(wange_[i], lv_color_hex(roet ? 0xFF5A7A : WANGE), 0);
-        int g = roet ? 8 : 0;  // beim Erröten größer
-        lv_obj_set_size(wange_[i], plan_->wange_b + g, plan_->wange_h + g / 2);
-        lv_obj_set_pos(wange_[i], plan_->wange_x[i] - g / 2, plan_->wange_y - g / 4);
+        lv_obj_set_style_bg_color(cheek_[i], lv_color_hex(blush ? 0xFF5A7A : CHEEK), 0);
+        int g = blush ? 8 : 0;  // bigger when blushing
+        lv_obj_set_size(cheek_[i], plan_->cheek_w + g, plan_->cheek_h + g / 2);
+        lv_obj_set_pos(cheek_[i], plan_->cheek_x[i] - g / 2, plan_->cheek_y - g / 4);
       }
-      if (roet)
-        for (auto *w : wange_) lv_obj_set_style_bg_opa(w, LV_OPA_COVER, 0);
+      if (blush)
+        for (auto *w : cheek_) lv_obj_set_style_bg_opa(w, LV_OPA_COVER, 0);
       else
-        ausdruck_setzen(ausdruck_);
+        apply_expression(expression_);
     }
-    for (int i = 0; i < 4; i++) {  // Sternchen blinken versetzt
-      zeigen(funkel_[i], funkel && ((jetzt / 180 + i) % 3) != 0);
+    for (int i = 0; i < 4; i++) {  // little stars blink offset
+      show(sparkle_[i], sparkle && ((now_ms / 180 + i) % 3) != 0);
     }
   }
 
-  void timer_tick(uint32_t jetzt) {
-    if (timer_ende_ && !timer_klingelt_) {
-      int rest = (int) (((int32_t) (timer_ende_ - jetzt) + 999) / 1000);
+  void timer_tick(uint32_t now_ms) {
+    if (timer_end_ && !timer_ringing_) {
+      int rest = (int) (((int32_t) (timer_end_ - now_ms) + 999) / 1000);
       if (rest <= 0) {
-        timer(-1, timer_name_);  // eigener Countdown fertig; HA meldet das Klingeln auch
-      } else if (rest <= 5 && rest != timer_zahl_) {  // letzte 5 s: großes Zählen
-        timer_zahl_ = rest;
-        zeitweise(UEBERRASCHT, 1100);
+        timer(-1, timer_name_);  // own countdown done; HA reports the ringing as well
+      } else if (rest <= 5 && rest != timer_count_) {  // last 5 s: big counting
+        timer_count_ = rest;
+        for_a_while(SURPRISED, 1100);
         anim(cb_hop, 0, 8, 120, 120, 1, lv_anim_path_ease_out);
-        zeige_schild(esphome::str_sprintf("%d", rest), 1);
-        if (ziffer_font_) lv_obj_set_style_text_font(schild_text_, ziffer_font_, 0);  // große Countdown-Ziffer
-      } else if (rest > 60 && vorbei(jetzt, naechste_timer_info_) && !schild_bis_ && !gedrueckt_) {
-        naechste_timer_info_ = jetzt + 90000;
-        anim(cb_blick_x, blick_x_, -12, 250);
-        naechster_blick_ = jetzt + 2500;
-        zeige_schild(art_ == ROBOTER ? esphome::str_sprintf("Noch %d s. Exakt.", rest) : "Noch " + dauer_text(rest), 3);
+        show_sign(esphome::str_sprintf("%d", rest), 1);
+        if (digit_font_) lv_obj_set_style_text_font(sign_text_, digit_font_, 0);  // big countdown digit
+      } else if (rest > 60 && passed(now_ms, next_timer_info_) && !sign_until_ && !pressed_) {
+        next_timer_info_ = now_ms + 90000;
+        anim(cb_look_x, look_x_, -12, 250);
+        next_look_ = now_ms + 2500;
+        show_sign(kind_ == ROBOT ? esphome::str_sprintf(txt::TIMER_LEFT_ROBOT, rest) : esphome::str_sprintf(txt::TIMER_LEFT_FMT, duration_text(rest).c_str()), 3);
       }
     }
-    if (timer_klingelt_) {
-      if (vorbei(jetzt, klingel_bis_)) {
-        timer_klingelt_ = false;
+    if (timer_ringing_) {
+      if (passed(now_ms, ring_until_)) {
+        timer_ringing_ = false;
         return;
       }
-      if (vorbei(jetzt, naechstes_klingeln_)) {
-        naechstes_klingeln_ = jetzt + 1300;
-        zeitweise(UEBERRASCHT, 1400);
+      if (passed(now_ms, next_ring_)) {
+        next_ring_ = now_ms + 1300;
+        for_a_while(SURPRISED, 1400);
         anim(cb_hop, 0, 18, 160, 200, 1, lv_anim_path_ease_out);
-        zappeln_bis_ = jetzt + 1300;
-        if (led) led((klingel_takt_++ % 2) ? 0xFF4A1A : 0xFFB020, 0.8f);
-        led_aus_bei_ = jetzt + 600;
-        if (!schild_bis_) zeige_schild(timer_name_.empty() ? std::string("Timer!") : timer_name_ + "!", 2);
+        wiggle_until_ = now_ms + 1300;
+        if (led) led((ring_beat_++ % 2) ? 0xFF4A1A : 0xFFB020, 0.8f);
+        led_off_at_ = now_ms + 600;
+        if (!sign_until_) show_sign(timer_name_.empty() ? std::string(txt::TIMER) : timer_name_ + "!", 2);
       }
     }
   }
 
-  // Okti-Arme: Phase weiterdrehen und Punkte neu setzen (alle 100 ms, beim Zappeln/Greifen alle 50 ms)
-  void tentakel_tick(uint32_t jetzt);
+  // Okti arms: advance the phase and set the points again (every 100 ms, every 50 ms while wiggling/grabbing)
+  void tentacle_tick(uint32_t now_ms);
 
-  // Roboterarme: Schulter → Ellbogen → Hand; hängen, halten das Schild, winken (rechts), greifen zum Finger
-  void roboter_arme();
+  // robot arms: shoulder → elbow → hand; hang, hold the sign, wave (right), reach for the finger
+  void robot_arms();
 
-  // Fuchsschwanz: buschig, nach oben gebogen, wedelt (stärker, wenn er sich freut oder zappelt); weiße Spitze
-  void fuchs_schwanz();
+  // fox tail: bushy, curved up, wags (more when he is happy or wiggles); white tip
+  void fox_tail();
 
-  void tentakel_zeichnen();
+  void draw_tentacles();
 
-  void augen_layout();
-  void gesicht_layout() { lv_obj_set_pos(gesicht_, blick_x_, blick_y_); }
-  void koerper_layout();
-  void arme_layout();
-  void schild_layout() { lv_obj_set_y(schild_, schild_y_); }
-  void hut();
-  void deko_anwenden();
+  void eyes_layout();
+  void face_layout() { lv_obj_set_pos(face_, look_x_, look_y_); }
+  void body_layout();
+  void arms_layout();
+  void sign_layout() { lv_obj_set_y(sign_, sign_y_); }
+  void hat();
+  void apply_decor();
 
-  // Hintergrund-Deko (Bildschirm-Koordinaten), liegt hinter der Figur
-  void deko_bauen();
+  // background decoration (screen coordinates), lies behind the character
+  void build_decor();
 
-  // --- Wetter-Ansicht (hinter der Figur): Sonne oben rechts unter der Uhr, zwei Wolken, Regen/Schnee, Nebel, Blitz ---
-  void wetter_bauen();
+  // --- weather view (behind the character): sun top right below the clock, two clouds, rain/snow, fog, lightning ---
+  void build_weather();
 
-  void wetter_anwenden();
+  void apply_weather();
 
-  void wetter_tick(uint32_t jetzt);
+  void weather_tick(uint32_t now_ms);
 
-  void fledermaeuse_setzen(int schlag) {  // Flügel: V (oben) oder flach
+  void set_bats(int beat) {  // wings: V (up) or flat
     for (int i = 0; i < 3; i++) {
-      int x = fleder_pos_[i][0], y = fleder_pos_[i][1], h = ((schlag + i) % 2) ? -6 : 3;
-      fluegel_pkt_[i][0].x = x - 12;
-      fluegel_pkt_[i][0].y = y + h;
-      fluegel_pkt_[i][1].x = x - 5;
-      fluegel_pkt_[i][1].y = y - 1;
-      fluegel_pkt_[i][2].x = x;
-      fluegel_pkt_[i][2].y = y + 2;
-      fluegel_pkt_[i][3].x = x + 5;
-      fluegel_pkt_[i][3].y = y - 1;
-      fluegel_pkt_[i][4].x = x + 12;
-      fluegel_pkt_[i][4].y = y + h;
-      lv_line_set_points(fluegel_[i], fluegel_pkt_[i], 5);
+      int x = bat_pos_[i][0], y = bat_pos_[i][1], h = ((beat + i) % 2) ? -6 : 3;
+      wing_pts_[i][0].x = x - 12;
+      wing_pts_[i][0].y = y + h;
+      wing_pts_[i][1].x = x - 5;
+      wing_pts_[i][1].y = y - 1;
+      wing_pts_[i][2].x = x;
+      wing_pts_[i][2].y = y + 2;
+      wing_pts_[i][3].x = x + 5;
+      wing_pts_[i][3].y = y - 1;
+      wing_pts_[i][4].x = x + 12;
+      wing_pts_[i][4].y = y + h;
+      lv_line_set_points(wing_[i], wing_pts_[i], 5);
     }
   }
 
-  // Deko bewegen: Fledermäuse flattern, Lichter funkeln, Schnee fällt
-  void deko_tick(uint32_t jetzt);
+  // move the decoration: bats flap, lights sparkle, snow falls
+  void decor_tick(uint32_t now_ms);
 
-  Art art_{OKTI};
-  const Bauplan *plan_{&PLAN_OKTI};
-  lv_obj_t *root_{}, *uhr_{}, *schatten_{}, *koerper_{}, *gesicht_{}, *kuerbis_{}, *stiel_{}, *antenne_{}, *kopf_{};
-  lv_obj_t *arm_[2]{}, *wange_[2]{}, *auge_[2]{}, *glanz_[2]{}, *froh_[2]{}, *spirale_[2]{}, *braue_[2]{};
-  lv_obj_t *mund_bogen_{}, *mund_o_{}, *mund_strich_{}, *zzz_{}, *schild_{}, *schild_text_{};
-  lv_obj_t *tentakel_[ARME]{}, *unterseite_[ARME]{};
-  lv_point_precise_t arm_pkt_[ARME][GLIEDER + 1]{}, unten_pkt_[ARME][GLIEDER + 1]{}, braue_pkt_[2][2]{};
+  Kind kind_{OKTI};
+  const Blueprint *plan_{&PLAN_OKTI};
+  lv_obj_t *root_{}, *clock_{}, *shadow_{}, *body_{}, *face_{}, *pumpkin_{}, *stem_{}, *antenna_{}, *head_{};
+  lv_obj_t *arm_[2]{}, *cheek_[2]{}, *eye_[2]{}, *shine_[2]{}, *happy_[2]{}, *spiral_[2]{}, *brow_[2]{};
+  lv_obj_t *mouth_arc_{}, *mouth_o_{}, *mouth_line_{}, *zzz_{}, *sign_{}, *sign_text_{};
+  lv_obj_t *tentacle_[ARMS]{}, *underside_[ARMS]{};
+  lv_point_precise_t arm_pkt_[ARMS][SEGMENTS + 1]{}, under_pts_[ARMS][SEGMENTS + 1]{}, brow_pts_[2][2]{};
 
-  bool sichtbar_{false}, gedrueckt_{false}, streichel_aktiv_{false}, halloween_{false};
-  int stimmung_{0}, farb_st_{-1}, anspannung_{20}, energie_{70};
-  bool weihnacht_{false};
-  int monat_{0}, tag_{0}, deko_modus_{0}, deko_takt_{0};
-  uint32_t letzte_deko_{0}, letzte_schnee_{0}, letzte_laub_{0};
-  static const int TEILCHEN = 18, SONNE_X = 286, SONNE_Y = 58;
-  lv_obj_t *wetter_{}, *sonne_{}, *strahl_[8]{}, *nebel_[3]{}, *wolke_[2]{}, *wolke_teil_[2][3]{}, *tropfen_[TEILCHEN]{},
-      *blitz_{};
-  lv_point_precise_t strahl_pkt_[8][2]{}, blitz_pkt_[5]{};
-  float wolke_x_[2]{}, tropfen_x_[TEILCHEN]{}, tropfen_y_[TEILCHEN]{};
-  uint8_t tropfen_art_[TEILCHEN]{};
-  bool wetter_wind_{false}, wetter_blitz_{false};
-  uint32_t letztes_wetter_{0}, blitz_an_{0}, naechster_blitz_{0};
-  std::string wetter_ha_, wetter_test_, wetter_alt_;
-  int wetter_laune_{0};
-  lv_obj_t *schweiss_{}, *traene_{}, *roet_[2][3]{}, *funkel_[4]{};
-  uint32_t schweiss_bis_{0}, traene_bis_{0}, roet_bis_{0}, funkel_bis_{0};
-  bool roet_an_{false};
-  uint32_t patzer_bei_{0};
-  int lw_stufe_{0}, versoehnt_{0};
-  bool schmollen_{false};
-  lv_obj_t *tinte_[6]{}, *spritzer_[8]{};
-  uint32_t tinte_start_{0};
-  bool tinte_weg_{false};
-  static const int FAUST_Y = 196;
-  lv_obj_t *faust_{}, *faust_arm_{}, *knoechel_[3]{}, *funken_[8]{};
-  uint32_t faust_start_{0}, faust_bis_{0}, funken_start_{0};
-  int zahl_[4]{};
-  bool verreist_{false};
-  bool schlaeft_{false};
-  lv_obj_t *netz_symbol_{}, *netz_text_{};
-  int netz_stufe_{0};
-  std::vector<std::string> fern_;
+  bool visible_{false}, pressed_{false}, petting_active_{false}, halloween_{false};
+  int mood_{0}, color_st_{-1}, tension_{20}, energy_{70};
+  bool christmas_{false};
+  int month_{0}, day_{0}, decor_mode_{0}, decor_beat_{0};
+  uint32_t last_decor_{0}, last_snow_{0}, last_leaves_{0};
+  static const int PARTICLES = 18, SUN_X = 286, SUN_Y = 58;
+  lv_obj_t *weather_{}, *sun_{}, *ray_[8]{}, *fog_[3]{}, *cloud_[2]{}, *cloud_part_[2][3]{}, *drop_[PARTICLES]{},
+      *flash_{};
+  lv_point_precise_t ray_pts_[8][2]{}, flash_pts_[5]{};
+  float cloud_x_[2]{}, drop_x_[PARTICLES]{}, drop_y_[PARTICLES]{};
+  uint8_t drop_kind_[PARTICLES]{};
+  bool weather_wind_{false}, weather_flash_{false};
+  uint32_t last_weather_{0}, flash_on_{0}, next_flash_{0};
+  std::string weather_ha_, weather_test_, weather_old_;
+  int weather_mood_{0};
+  lv_obj_t *sweat_{}, *tear_{}, *blush_[2][3]{}, *sparkle_[4]{};
+  uint32_t sweat_until_{0}, tear_until_{0}, blush_until_{0}, sparkle_until_{0};
+  bool blush_on_{false};
+  uint32_t blunder_at_{0};
+  int bored_level_{0}, reconciled_{0};
+  bool sulking_{false};
+  lv_obj_t *ink_[6]{}, *splash_[8]{};
+  uint32_t ink_start_{0};
+  bool ink_gone_{false};
+  static const int FIST_Y = 196;
+  lv_obj_t *fist_{}, *fist_arm_{}, *knuckle_[3]{}, *sparks_[8]{};
+  uint32_t fist_start_{0}, fist_until_{0}, sparks_start_{0};
+  int counts_[4]{};
+  bool away_{false};
+  bool sleeping_{false};
+  lv_obj_t *network_symbol_{}, *network_text_{};
+  int network_level_{0};
+  std::vector<std::string> remote_;
 
  public:
-  lv_obj_t *hilfe_knopf_{}, *hilfe_tafel_{}, *schmuck_{}, *schmuck_glanz_{}, *ohrstecker_[2]{};
-  bool schmuck_an_{false};
-  uint32_t hilfe_bis_{0}, spiele_bis_{0};
-  lv_obj_t *spiele_knopf_{}, *spiele_tafel_{};
-  uint32_t schreck_bei_{0}, herzen_start_{0}, jongl_start_{0}, jagen_start_{0}, prop_start_{0};
-  bool jongl_fallen_{false};
+  lv_obj_t *help_button_{}, *help_panel_{}, *jewelry_{}, *jewelry_shine_{}, *earrings_[2]{};
+  bool jewelry_on_{false};
+  uint32_t help_until_{0}, games_until_{0};
+  lv_obj_t *games_button_{}, *games_panel_{};
+  uint32_t scare_at_{0}, hearts_start_{0}, juggle_start_{0}, chase_start_{0}, prop_start_{0};
+  bool juggle_drop_{false};
   lv_obj_t *ball_[3]{}, *prop_[2]{};
-  lv_point_precise_t prop_pkt_[2][2]{};
-  lv_obj_t *herz_g_[6]{}, *brief_siegel_{};
-  uint32_t knoten_bis_{0}, knoten_los_{0}, faecher_schwanz_bis_{0}, klappe_start_{0};
-  lv_obj_t *zahnrad_[2]{};
-  lv_obj_t *bett_{}, *standby_{};
+  lv_point_precise_t prop_pts_[2][2]{};
+  lv_obj_t *heart_g_[6]{}, *letter_seal_{};
+  uint32_t knot_until_{0}, knot_loose_{0}, tail_fan_until_{0}, flap_start_{0};
+  lv_obj_t *gear_[2]{};
+  lv_obj_t *bed_{}, *standby_{};
   lv_obj_t *matrix_[14]{};
   float matrix_y_[14]{};
-  uint32_t matrix_bis_{0}, letzte_matrix_{0};
-  lv_obj_t *schwanz_rand_{}, *schwanz_bauch_{}, *saugnapf_[ARME][3]{};
-  lv_obj_t *huegel_{}, *visier_{}, *scan_[3]{};
-  uint32_t maus_start_{0}, glitch_start_{0};
-  int maus_y_{0};
-  bool maus_raus_{false};
-  std::string karte_;
-  lv_obj_t *koffer_{}, *zettel_text_{};
-  lv_obj_t *status_{}, *status_sym_[4]{}, *status_zahl_[4]{};
-  const lv_font_t *status_font_{}, *ziffer_font_{}, *schild_font_{};
+  uint32_t matrix_until_{0}, last_matrix_{0};
+  lv_obj_t *tail_edge_{}, *tail_belly_{}, *sucker_[ARMS][3]{};
+  lv_obj_t *mound_{}, *visor_{}, *scan_[3]{};
+  uint32_t mouse_start_{0}, glitch_start_{0};
+  int mouse_y_{0};
+  bool mouse_out_{false};
+  std::string card_;
+  lv_obj_t *suitcase_{}, *note_text_{};
+  lv_obj_t *status_{}, *status_sym_[4]{}, *status_count_[4]{};
+  const lv_font_t *status_font_{}, *digit_font_{}, *sign_font_{};
   int status_stand_{-1};
-  int patzer_art_{0};
-  lv_obj_t *deko_h_{}, *deko_w_{}, *muetze_{}, *fluegel_[3]{}, *kugel_[6]{}, *birne_[12]{}, *flocke_[14]{};
-  lv_point_precise_t fluegel_pkt_[3][5]{}, kette_pkt_[9]{};
-  int fleder_pos_[3][2]{};
-  float flocke_x_[14]{}, flocke_y_[14]{};
-  Ausdruck ausdruck_{NORMAL}, basis_{NORMAL};
-  int augen_w_{24}, augen_h_{40};
-  int blinzel_{0}, blick_x_{0}, blick_y_{0}, hop_{0}, atem_{0}, wackel_{0}, arm_pos_{0}, schild_y_{SCHILD_WEG};
-  int greif_arm_{-1}, greif_x_{0}, greif_y_{0};
+  int blunder_kind_{0};
+  lv_obj_t *decor_hat_{}, *decor_w_{}, *cap_{}, *wing_[3]{}, *bauble_[6]{}, *bulb_[12]{}, *flake_[14]{};
+  lv_point_precise_t wing_pts_[3][5]{}, chain_pts_[9]{};
+  int bat_pos_[3][2]{};
+  float flake_x_[14]{}, flake_y_[14]{};
+  Expression expression_{NORMAL}, base_{NORMAL};
+  int eyes_w_{24}, eyes_h_{40};
+  int blink_{0}, look_x_{0}, look_y_{0}, hop_{0}, breath_{0}, wobble_{0}, arm_pos_{0}, sign_y_{SIGN_HIDDEN};
+  int grab_arm_{-1}, grab_x_{0}, grab_y_{0};
   float phase_{0};
-  uint32_t ausdruck_bis_{0}, schild_bis_{0}, led_aus_bei_{0}, nachher_bei_{0}, streichel_bis_{0};
-  uint32_t naechstes_blinzeln_{0}, naechster_blick_{0}, naechste_idee_{0}, letzte_beruehrung_{0};
-  int nabu_blick_x_{-12}, nabu_blick_y_{-4};
-  uint32_t stups_start_{0}, nabu_ruhe_{0}, winken_bis_{0}, zappeln_bis_{0}, letzte_tentakel_{0};
-  int stupser_{0};
+  uint32_t expression_until_{0}, sign_until_{0}, led_off_at_{0}, later_at_{0}, petting_until_{0};
+  uint32_t next_blink_{0}, next_look_{0}, next_idea_{0}, last_touch_{0};
+  int nabu_look_x_{-12}, nabu_look_y_{-4};
+  uint32_t poke_start_{0}, nabu_quiet_{0}, wave_until_{0}, wiggle_until_{0}, last_tentacle_{0};
+  int pokes_{0};
   lv_point_t start_{};
-  std::string nachher_text_;
-  std::deque<std::string> post_, schilder_;
-  int schild_dauer_{4};
-  int rufe_{0};
-  lv_obj_t *brief_{};
-  lv_point_precise_t brief_klappe_[3]{};
-  lv_obj_t *brief_klappe_obj_{};
-  bool arm0_vorn_{false};
-  uint32_t brief_offen_bis_{0};
-  uint32_t naechster_ruf_{0}, abgeholt_bis_{0};
-  uint32_t timer_ende_{0}, naechste_timer_info_{0}, klingel_bis_{0}, naechstes_klingeln_{0};
-  bool timer_klingelt_{false};
-  int timer_zahl_{-1}, klingel_takt_{0};
+  std::string later_text_;
+  std::deque<std::string> post_, signs_;
+  int sign_duration_{4};
+  int calls_{0};
+  lv_obj_t *letter_{};
+  lv_point_precise_t letter_flap_[3]{};
+  lv_obj_t *letter_flap_obj_{};
+  bool arm0_front_{false};
+  uint32_t letter_open_until_{0};
+  uint32_t next_call_{0}, collected_until_{0};
+  uint32_t timer_end_{0}, next_timer_info_{0}, ring_until_{0}, next_ring_{0};
+  bool timer_ringing_{false};
+  int timer_count_{-1}, ring_beat_{0};
   std::string timer_name_;
-  std::string frage_text_, frage_opt_[2];
-  bool frage_aktiv_{false}, frage_gezeigt_{false};
-  uint32_t frage_bis_{0};
-  lv_obj_t *frage_box_{}, *frage_lbl_[2]{};
-  Spiel spiel_{KEIN_SPIEL};
-  uint32_t reaktion_bereit_{0}, reaktion_los_{0}, ttt_yellow_bei_{0}, ttt_ende_bei_{0};
-  int ttt_[9]{}, ttt_ergebnis_{0};
-  uint32_t letzter_zug_{0};
-  lv_obj_t *spiel_box_{}, *ttt_lbl_[9]{};
-  lv_obj_t *simon_box_{}, *simon_feld_[4]{};
-  lv_obj_t *brille_{}, *schal_{}, *schirm_{};
-  lv_point_precise_t schirm_stiel_[2]{}, kanne_tuelle_[2]{};
-  lv_obj_t *korb_{}, *tonne_{}, *kissen_{}, *nabu_mini_{};
-  lv_obj_t *robo_arm_[2]{}, *robo_hand_[2]{}, *herz_{}, *schwanz_{}, *schwanz_spitze_{}, *pfote_[2]{}, *spitze_[5]{};
-  lv_point_precise_t spitze_pkt_[5][2]{};
-  lv_point_precise_t robo_pkt_[2][3]{}, schwanz_pkt_[5]{}, ohr_pkt_[2][2][5][2]{};
-  // Ohrspitzen [Ohr][außen/innen][x,y]
-  static constexpr int OHR_SPITZE[2][2][2] = {{{34, -18}, {36, -4}}, {{146, -18}, {144, -4}}};
-  uint32_t nabu_gruss_bei_{0}, nabu_geht_bei_{0}, nabu_weg_bei_{0}, welk_bis_{0};
-  int besuch_x_{0};
-  uint32_t besuch_los_{0}, besuch_zurueck_{0};
-  lv_obj_t *faecher_{}, *kanne_{}, *tuete_{}, *rauch_[3]{}, *hut_glyph_{}, *deko_g_[8]{};
-  const lv_font_t *deko_font_{};
-  const DekoSatz *deko_satz_{};
-  int anlass_zahl_{0};
-  bool rosa_{false};
-  std::string deko_key_;
-  std::string anlass_, deko_test_, letztes_schild_;
-  uint32_t letztes_schild_zeit_{0};
-  const char *accessoire_{""};
-  uint32_t accessoire_farbe_{0};
-  int requisit_{0};
-  uint32_t requisit_bis_{0};
-  int simon_folge_[32]{}, simon_len_{1}, simon_idx_{0}, simon_pos_{0}, simon_an_{-1}, simon_phase_{0};
-  uint32_t simon_naechst_{0}, simon_aus_bei_{0};
+  std::string question_text_, question_opt_[2];
+  bool question_active_{false}, question_shown_{false};
+  uint32_t question_until_{0};
+  lv_obj_t *question_box_{}, *question_lbl_[2]{};
+  Game game_{NO_GAME};
+  uint32_t reaction_ready_{0}, reaction_go_{0}, ttt_yellow_at_{0}, ttt_end_at_{0};
+  int ttt_[9]{}, ttt_result_{0};
+  uint32_t last_move_{0};
+  lv_obj_t *game_box_{}, *ttt_lbl_[9]{};
+  lv_obj_t *simon_box_{}, *simon_field_[4]{};
+  lv_obj_t *glasses_{}, *scarf_{}, *umbrella_{};
+  lv_point_precise_t umbrella_stick_[2]{}, can_spout_[2]{};
+  lv_obj_t *basket_{}, *bin_{}, *pillow_{}, *nabu_mini_{};
+  lv_obj_t *robot_arm_[2]{}, *robot_hand_[2]{}, *heart_{}, *tail_{}, *tail_tip_{}, *paw_[2]{}, *tip_[5]{};
+  lv_point_precise_t tip_pts_[5][2]{};
+  lv_point_precise_t robot_pts_[2][3]{}, tail_pts_[5]{}, ear_pts_[2][2][5][2]{};
+  // ear tips [ear][outer/inner][x,y]
+  static constexpr int EAR_TIP[2][2][2] = {{{34, -18}, {36, -4}}, {{146, -18}, {144, -4}}};
+  uint32_t nabu_greet_at_{0}, nabu_leaves_at_{0}, nabu_gone_at_{0}, wilt_until_{0};
+  int visit_x_{0};
+  uint32_t visit_leave_{0}, visit_return_{0};
+  lv_obj_t *fan_{}, *can_{}, *joint_{}, *smoke_[3]{}, *hat_glyph_{}, *decor_g_[8]{};
+  const lv_font_t *decor_font_{};
+  const DecoSet *decor_set_{};
+  int occasion_count_{0};
+  bool pink_{false};
+  std::string decor_key_;
+  std::string occasion_, decor_test_, last_sign_;
+  uint32_t last_sign_time_{0};
+  const char *accessory_{""};
+  uint32_t accessory_color_{0};
+  int prop_id_{0};
+  uint32_t prop_until_{0};
+  int simon_seq_[32]{}, simon_len_{1}, simon_idx_{0}, simon_pos_{0}, simon_on_{-1}, simon_phase_{0};
+  uint32_t simon_next_{0}, simon_off_at_{0};
 };
 
-inline Figur figur;
+inline Companion companion;
 
 }  // namespace yellow
 
-#include "yellow_spiele.h"
-#include "yellow_spezial.h"
-#include "yellow_deko.h"
-#include "yellow_koerper.h"
+#include "yellow_games.h"
+#include "yellow_special.h"
+#include "yellow_decor.h"
+#include "yellow_body.h"
 #include "yellow_post.h"

@@ -1,20 +1,20 @@
-# Yellow – Profil „Unterwegs“ (Stufe 3): ohne Home Assistant. Daten und Befehle per MQTT über den Server
-# (TLS), Zeit per SNTP. Liefert der Basis dieselben Datenquellen-IDs wie yellow-zuhause.yaml.
-# Gerätedatei setzt: mqtt_broker (öffentlicher Name des eigenen Brokers), mqtt_user (= Gerät, ACL yellow/<mqtt_user>/#), mqtt_passwort (!secret).
-# Befehle, Daten und Ereignisse: yellow-mqtt.yaml (gemeinsam mit dem Profil „Zuhause“).
+# Yellow – profile "mobile" (stage 3): without Home Assistant. Data and commands via MQTT over the server
+# (TLS), time via SNTP. Gives the base the same data source IDs as yellow-home.yaml.
+# The device file sets: mqtt_broker (public name of your broker), mqtt_user (= device, ACL yellow/<mqtt_user>/#), mqtt_password (!secret).
+# Commands, data and events: yellow-mqtt.yaml (shared with the profile "home").
 substitutions:
   mqtt_port: "8883"
 
 api:
-  reboot_timeout: 0s # unterwegs ohne HA: nicht neu starten
+  reboot_timeout: 0s # on the go without HA: do not reboot
 
 wifi:
-  reboot_timeout: 0s # offline ist unterwegs normal
+  reboot_timeout: 0s # offline is normal on the go
 
 mqtt:
   broker: ${mqtt_broker}
   port: ${mqtt_port}
-  certificate_authority: | # ISRG Root X1 (Let's Encrypt), öffentlich
+  certificate_authority: | # ISRG Root X1 (Let's Encrypt), public
     -----BEGIN CERTIFICATE-----
     MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
     TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -54,11 +54,11 @@ time:
     on_time:
       - seconds: /1
         then:
-          - script.execute: uhr_zeichnen
+          - script.execute: draw_clock
       - seconds: 0
         minutes: 0
         hours: 0
         then:
-          - lambda: yellow::figur.neuer_tag();
+          - lambda: yellow::companion.new_day();
     on_time_sync:
-      - script.execute: uhr_zeichnen
+      - script.execute: draw_clock

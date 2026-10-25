@@ -1,0 +1,22 @@
+# Yellow – profile "home": local Mosquitto (without TLS), time from HA, ESPHome API for OTA, logs and the native
+# entities. Data, commands and events run over MQTT as on the go (yellow-mqtt.yaml).
+mqtt:
+  broker: ${mqtt_broker}
+  port: 1883
+
+api:
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time:
+      - seconds: /1
+        then:
+          - script.execute: draw_clock
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - lambda: yellow::companion.new_day();
+    on_time_sync:
+      - script.execute: draw_clock

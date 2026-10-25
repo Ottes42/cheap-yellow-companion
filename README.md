@@ -1,5 +1,7 @@
 # Cheap Yellow Companion
 
+🇩🇪 [Deutsche Version](README.de.md)
+
 **Yellow** is a small, mute desk/bedside companion for the *Cheap Yellow Display* (ESP32-2432S028R, 320×240, resistive
 touch, RGB LED, no PSRAM), built with **ESPHome + LVGL 9** and talking **MQTT**, with or without **Home Assistant**.
 
@@ -8,15 +10,13 @@ assistant that is allowed to speak. Three characters: **Okti** (a reversible oct
 grumpy), a **fox** (brave, a bit cheeky) and a small **robot**.
 
 <p align="center">
-  <img src="docs/media/okti-jonglieren.gif" width="32%" alt="Okti juggles">
-  <img src="docs/media/fuchs-schwanz.gif" width="32%" alt="The fox chases its tail">
-  <img src="docs/media/roboter-propeller.gif" width="32%" alt="The robot takes off">
+  <img src="docs/media/okti-juggle.gif" width="32%" alt="Okti juggles">
+  <img src="docs/media/fox-chase-tail.gif" width="32%" alt="The fox chases its tail">
+  <img src="docs/media/robot-propeller.gif" width="32%" alt="The robot takes off">
 </p>
 
 <p align="center"><sub>Real screen output, recorded pixel by pixel from the device. More in the
-<a href="docs/galerie.md">gallery</a> – but not everything, find the rest yourself.</sub></p>
-
-> The on-screen texts are German for now (translations: #1).
+<a href="docs/gallery.md">gallery</a> – but not everything, find the rest yourself.</sub></p>
 
 ## Features
 
@@ -28,12 +28,13 @@ grumpy), a **fox** (brave, a bit cheeky) and a small **robot**.
 - **Post and love letters:** messages wait in an envelope until someone taps Yellow; read receipt back.
 - **Questions** with two touch answer buttons.
 - Gestures, props, special moves per character (ink cloud, fox dive, robot glitch, juggling …), fist bump.
-- **Occasions and seasons** with background decoration and hats; weather view; Matrix rain at 13:37.
+- **Occasions and seasons** with background decoration and hats; weather view; Matrix rain.
 - Night rules: in a dark room Yellow never reacts; a tap shows a very dim clock. Landscape clock view with alarm,
   next appointment, weather and room climate.
 - **Network status:** red icon when Wi‑Fi is gone (tap it → Wi‑Fi dialog with network list and on-screen keyboard),
   orange when the MQTT server or the internet is missing.
 - **Telemetry and activity log** (MQTT, retained), **remote one-liners** (your own list, stored on the device).
+- **English or German**, chosen at compile time (`language: en|de`).
 - Optional: **together with a voice assistant** (Home Assistant Voice), see [docs/nabu.md](docs/nabu.md).
 
 The complete list, with the version each feature appeared in: [FEATURES.md](FEATURES.md).
@@ -42,28 +43,52 @@ The complete list, with the version each feature appeared in: [FEATURES.md](FEAT
 
 | Package | Use |
 |---|---|
-| `yellow-basis.yaml` | Character, display, touch, games, help, Wi‑Fi dialog (always) |
+| `yellow-base.yaml` | Character, display, touch, games, help, Wi‑Fi dialog (always) |
 | `yellow-mqtt.yaml` | Commands, data, events, telemetry over MQTT (always) |
-| `yellow-zuhause.yaml` | **Home:** local broker without TLS, time from Home Assistant, ESPHome API for OTA and logs |
-| `yellow-unterwegs.yaml` | **Away:** your public broker over TLS, SNTP, keeps running offline |
+| `yellow-home.yaml` | **Home:** local broker without TLS, time from Home Assistant, ESPHome API for OTA and logs |
+| `yellow-mobile.yaml` | **On the go:** your public broker over TLS, SNTP, keeps running offline |
 | `yellow-nabu.yaml` | Optional: Yellow looks at the voice assistant's LED ring and knows where it stands |
+| `yellow-screenshot.yaml` | Optional, only while taking pictures: pixel-exact screenshots over MQTT (`tools/screenshot.py`) |
 | `board-cyd.yaml` | Hardware package for the ESP32-2432S028R |
+
+## Language
+
+All on-screen texts live in `esphome/lang/<language>.h`, entity names and the few YAML texts in
+`esphome/lang/<language>.yaml`. Set the substitution `language: en` (default) or `de` in your device file.
+Home Assistant builds the entity IDs from the entity names, so **switching the language gives new entity IDs**;
+adjust your automations or rename the entity IDs afterwards. Another language = one more pair of files with the
+same keys.
 
 ## MQTT topics (`yellow/<device>/…`)
 
-- `befehl` – JSON command, e.g. `{"aktion": "nachricht", "inhalt": "Hallo!", "warten": true}`;
-  actions: nachricht, liebesbrief, ausdruck, requisit, deko_test, effekt, verreist, matrix, wetter, schmuck, accessoire,
-  spiel, frage, timer, geste, blick, nabu_richtung, schlafen, langeweile_test, netz_test, telemetrie, wlan_dialog,
-  bild (only with `yellow-bild.yaml`); gestures include winken, tanzen, faustgruss, hilfe, lichtschreck and the special moves
-- `daten/<name>` (retained) – anlass, wecker, termin, hinweis, wetter, wetter_lage, aussen_temp, raum_temp,
-  raum_feuchte, sprueche; events without retain: klingel, nabu_ring
-- `ereignis` – JSON from the device: gelesen, antwort, spiel (+ wert), gestreichelt, timer_aus
-- `telemetrie` (retained), `status` online/offline (retained, last will)
+- `command` – JSON command, e.g. `{"action": "message", "text": "Hello!", "wait": true}`.
+  Actions and their fields:
+  `message` (text, wait, seconds), `love_letter` (text), `expression` (expression, seconds), `prop` (prop, seconds),
+  `effect` (name, seconds), `gesture` (gesture), `look` (direction), `accessory` (name), `jewelry` (on),
+  `question` (question, options `"Yes|No"`), `game` (game: reaction, ttt, simon), `timer` (seconds, name),
+  `sleep` (on), `away` (on, card), `matrix` (seconds), `nabu_direction` (direction), `telemetry`;
+  for testing: `decor_test` (occasion), `weather` (condition), `boredom_test` (minutes), `network_test` (level),
+  `wifi_dialog`; `image` (seconds) only with `yellow-screenshot.yaml`.
+  - expressions: normal, happy, surprised, dizzy, tired, annoyed, sad, asleep, yawn
+  - gestures: hop, wobble, wiggle, nod, shake_head, wave, startle, oracle, wilt, dance, hearts, help, blunder,
+    fist_bump, light_scare, special, nabu_visits, visit_nabu; per character ink, knot, juggle (Okti), mouse_dive,
+    chase_tail, tail_fan (fox), glitch, propeller, visor (robot)
+  - props: sunglasses, umbrella, scarf, fan, watering_can, joint, laundry_basket, trash_can, pillow, none;
+    effects: sweat, tear, blush, sparkle, none; accessories: hat, crown, star, flower, none;
+    directions: left, right, up, down, center
+- `data/<name>` (retained) – occasion, alarm, appointment, notice, weather, weather_condition, outdoor_temp,
+  room_temp, room_humidity, sayings; events without retain: doorbell, nabu_ring.
+  Occasions: easter, new_year, valentine, carnival, advent (`advent|2`), st_nicholas, st_martin, birthday
+  (`birthday|Name`), mothers_day, fathers_day, harvest, oktoberfest, beer, clock_change, full_moon, perseids,
+  solstice, friday13, starwars, pi, towel, pirate, 420, future, hobbit, coffee, programmer, cat, blackfriday, ufo,
+  emoji, spring, summer, autumn, winter
+- `event` – JSON from the device, `type`: read (text), answer (text), game (game, value), petted (text), timer_off
+- `telemetry` (retained), `status` online/offline (retained, last will)
 
 ## Install
 
 1. Clone this repo into your ESPHome config folder (`…/esphome/cheap-yellow-companion`).
-2. Copy `esphome/example-zuhause.yaml` next to it (into `…/esphome/`), set the substitutions and secrets, flash.
+2. Copy `esphome/example-home.yaml` next to it (into `…/esphome/`), set the substitutions and secrets, flash.
 3. In Home Assistant: an MQTT broker (e.g. the Mosquitto add-on) with a user for Yellow, then import the blueprints
    below and create one automation per blueprint with your device name.
 
@@ -71,19 +96,19 @@ The complete list, with the version each feature appeared in: [FEATURES.md](FEAT
 
 | | |
 |---|---|
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_daten.yaml) | **Send data** – weather, next alarm, next appointment, a hint line, outdoor/room temperature and humidity |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_klingel.yaml) | **Doorbell** – "Es klingelt" panel for 60 s when the room is lit |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_sprachassistent_ring.yaml) | **Voice assistant LED ring** – Yellow looks over when the ring lights up (needs `yellow-nabu.yaml`) |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_post_gelesen.yaml) | **Read receipt** – your actions when a message or love letter was read |
-| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fscript%2Fyellow_nachricht.yaml) | **Message (script)** – message, post or love letter; expose it to Assist for "Tell Yellow …" |
+| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_data.yaml) | **Send data** – weather, next alarm, next appointment, a notice line, outdoor/room temperature and humidity |
+| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_doorbell.yaml) | **Doorbell** – doorbell panel for 60 s when the room is lit |
+| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_voice_assistant_ring.yaml) | **Voice assistant LED ring** – Yellow looks over when the ring lights up (needs `yellow-nabu.yaml`) |
+| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_post_read.yaml) | **Read receipt** – your actions when a message or love letter was read |
+| [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fscript%2Fyellow_message.yaml) | **Message (script)** – message, post or love letter; expose it to Assist for "Tell Yellow …" |
 
-Anything else: publish a JSON command to `yellow/<device>/befehl` with `mqtt.publish` (see topics above).
+Anything else: publish a JSON command to `yellow/<device>/command` with `mqtt.publish` (see topics above).
 Tips: give Yellow its own MQTT user; expose only the message script to Assist; the occasions calendar, LLM one-liners,
 games records and the house-ghost reactions of the original setup are not blueprints yet (see the issues).
 
 ## Status
 
-0.1.0 – runs every day on one bedside display. Generalising the Home Assistant side (blueprints) is in progress.
+0.2.0 – runs every day on one bedside display. Generalising the Home Assistant side (blueprints) is in progress.
 Ideas and plans live in the issues; changes in [CHANGELOG.md](CHANGELOG.md).
 
 ## License

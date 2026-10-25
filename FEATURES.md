@@ -4,11 +4,11 @@ Everything Yellow can do today, as a reference for the curious and a quick orien
 working on this repo. The [README](README.md) stays short; this list is complete. Changes per release:
 [CHANGELOG.md](CHANGELOG.md).
 
-> Command reference: see the docs (the MQTT interface is being renamed to English in v0.2.0, #1). This page
-> describes features in user terms and does not list command, field or gesture names.
+> Command reference: [README, MQTT topics](README.md#mqtt-topics-yellowdevice). This page describes features in user
+> terms and does not list command, field or gesture names.
 
-Where it lives: `esphome/yellow.h` (class `Figur`, tick loop) and `esphome/yellow_*.h` (topics), `esphome/yellow-*.yaml`
-(packages), `homeassistant/blueprints/` (Home Assistant side).
+Where it lives: `esphome/yellow.h` (class `Companion`, tick loop) and `esphome/yellow_*.h` (topics), `esphome/yellow-*.yaml`
+(packages), `esphome/lang/` (all texts per language), `homeassistant/blueprints/` (Home Assistant side).
 
 ## Characters
 
@@ -16,6 +16,7 @@ Where it lives: `esphome/yellow.h` (class `Figur`, tick loop) and `esphome/yello
 |---|---|---|
 | Three characters | Okti (reversible octopus, yellow and happy or red and grumpy, eight arms), a fox (brave, a bit cheeky, bushy tail) and a small robot (visor, antenna, pulsing heart light). Chosen on the device or fixed at build time. | 0.1.0 |
 | Shapes only | Drawn from LVGL shapes, arcs and lines, no bitmaps; fits an ESP32 without PSRAM. | 0.1.0 |
+| Languages | English or German, chosen at compile time (`language: en\|de`): every on-screen text, entity name and the boot greeting; date and decimal format follow. German was the only language until 0.1.0. | 0.2.0 |
 | Alive when idle | Breathes, blinks, looks around, hops, yawns, wiggles, waves, walks off one side and comes back from the other; every few seconds a small idea. | 0.1.0 |
 | Entrance | When he becomes visible he comes in from the side: the fox runs, Okti crawls, the robot rolls. | 0.1.0 |
 | Startup | Random line on the boot screen, then a wave and a greeting (with the owner's and the figure's name if set). | 0.1.0 |
@@ -146,4 +147,4 @@ Optional, details in [docs/nabu.md](docs/nabu.md).
 
 | Feature | Description | Since |
 |---|---|---|
-| Screenshots and GIFs | Optional package `yellow-bild.yaml` plus `tools/bild.py`: pixel-exact frames over MQTT, no camera; `tools/rahmen.py` puts them into a drawn board. Include only temporarily. | Unreleased |
+| Screenshots and GIFs | Optional package `yellow-screenshot.yaml` plus `tools/screenshot.py`: pixel-exact frames over MQTT, no camera; `tools/frame.py` puts them into a drawn board. Include only temporarily. | 0.2.0 |
