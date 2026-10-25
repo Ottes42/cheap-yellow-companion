@@ -27,3 +27,17 @@ Things that work in code but should be played with live and tuned:
 20 minutes before the alarm the display slowly brightens with a warm LED glow and Yellow sleeps, then holds up
 "Kaffee?"; in the evening a calm routine. Exists in the owner's Home Assistant package (switches off by default); could
 become a blueprint once tried live.
+
+## Yellow "reads along" with the voice assistant
+
+When the assistant answers, Yellow holds up a short keyword sign about it. (Was issue #21.)
+
+## Relationship levels per person
+
+Yellow knows who is using him (via Home Assistant) and has a relationship level per person; unlocks accessories,
+per-person leaderboard. (Was issue #28.)
+
+## From the research list
+
+Mood diary, emergency full screen, underwater bubbles, blackjack, thought bubble instead of a sign, camouflage colour.
+Pick one and make it an issue when it is taken up. (Was issue #30.)
