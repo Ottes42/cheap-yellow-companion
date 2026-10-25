@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Gallery page and README GIFs, recorded pixel-exact from the device
+- Optional package `esphome/yellow-bild.yaml` (command `bild`) and `tools/bild.py` for screenshots and GIFs over MQTT,
+  `tools/rahmen.py` puts them into a drawn CYD board
+
 ## [0.1.0] – 2026-10-25
 
 First public version, in daily use on one bedside display.

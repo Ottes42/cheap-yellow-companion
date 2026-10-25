@@ -7,9 +7,16 @@ Yellow cannot talk and knows it – he holds up cardboard signs, pulls faces, wa
 assistant that is allowed to speak. Three characters: **Okti** (a reversible octopus, yellow and happy or red and
 grumpy), a **fox** (brave, a bit cheeky) and a small **robot**.
 
-![Okti](docs/images/okti-erster-start.jpg)
+<p align="center">
+  <img src="docs/media/okti-jonglieren.gif" width="32%" alt="Okti juggles">
+  <img src="docs/media/fuchs-schwanz.gif" width="32%" alt="The fox chases its tail">
+  <img src="docs/media/roboter-propeller.gif" width="32%" alt="The robot takes off">
+</p>
 
-> The on-screen texts are German for now. Photos and GIFs are being redone.
+<p align="center"><sub>Real screen output, recorded pixel by pixel from the device. More in the
+<a href="docs/galerie.md">gallery</a> – but not everything, find the rest yourself.</sub></p>
+
+> The on-screen texts are German for now (translations: #1).
 
 ## Features
 

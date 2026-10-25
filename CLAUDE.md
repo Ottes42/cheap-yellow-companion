@@ -1,5 +1,9 @@
 # Notes for working on this repo (also for AI assistants)
 
+Layout: `esphome/` firmware (packages + `yellow*.h`), `homeassistant/blueprints/` (automation + script),
+`docs/` (gallery, `nabu.md`, media), `tools/` (screenshots, board frame). Ideas and plans are GitHub issues;
+the owner's private installation (family automations, servers, devices) is not part of this repo.
+
 - Owner writes German; code comments and on-screen texts are German, README/CHANGELOG English.
 - ESPHome + LVGL 9 on an ESP32 **without PSRAM**. RAM is the hard limit: about 95–120 KB free, the largest free block
   ~49–64 KB. Transformed or semi-transparent large objects need an LVGL layer of width × height × 4 bytes in one block;
@@ -16,3 +20,17 @@
   note it in the issue, add a CHANGELOG line.
 - Home Assistant side: ship and update blueprints, document setup tips; the voice assistant part lives in
   `docs/nabu.md`.
+
+## Issues workflow
+
+- The owner drops raw ideas as issues (German, keywords are fine). At the start of a work session, or when asked,
+  fetch new issues and comments (`gh issue list`, `gh issue view N --comments`), rewrite title and body into a clear
+  English issue, keep the original as a quote at the end, and label it (`enhancement`/`documentation`, plus whether it
+  is generic or a family example). Family-only ideas move to the private config, not this repo.
+- Before working on an issue, read all comments; ask questions as comments. Reference the issue in commits
+  (`Fixes #N`), close it with a short comment on what was done and what was left out, add a CHANGELOG line.
+
+## Screenshots and GIFs
+
+Include `esphome/yellow-bild.yaml` only temporarily, then run `tools/bild.py` (pixel-exact frames over MQTT);
+crop/arrange with ImageMagick. Remove the package again afterwards.

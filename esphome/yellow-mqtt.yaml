@@ -55,7 +55,7 @@ mqtt:
             else if (a == "schlafen") f.schlafen(an);
             else if (a == "telemetrie") id(telemetrie_senden).execute();
             else if (a == "wlan_dialog") id(wlan_oeffnen).execute();  // zum Testen ohne Tippen
-            else ESP_LOGW("yellow", "unbekannte Aktion: %s", a.c_str());
+            else if (a != "bild") ESP_LOGW("yellow", "unbekannte Aktion: %s", a.c_str());  // bild: yellow-bild.yaml
 
 # Telemetrie (retained) beim Verbinden und alle 30 min: Lebenszeichen, Zustand und gesammeltes Aktivitätsprotokoll
 script:
