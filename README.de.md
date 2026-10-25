@@ -84,7 +84,7 @@ Felder und Werte steht in der [englischen README](README.md#mqtt-topics-yellowde
 
 Einrichtung, Entitäten, Sprache und alle Blueprints mit Import-Knöpfen: **[docs_de/homeassistant.md](docs_de/homeassistant.md)**.
 Blueprints bisher: Daten senden (Wetter, Wecker, Termin, Raumklima), Türklingel, LED-Ring des Sprachassistenten,
-Lesebestätigung, Nachrichten-Skript. Alles andere: einen JSON-Befehl an `yellow/<gerät>/command` schicken (siehe oben).
+Lesebestätigung, Nachrichten-Skript. Yellow als Dashboard-Karte (WebAssembly): **[docs_de/card.md](docs_de/card.md)**. Alles andere: einen JSON-Befehl an `yellow/<gerät>/command` schicken (siehe oben).
 
 ## Stand
 

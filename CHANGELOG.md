@@ -1,7 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] – 2026-10-25
 
+- **Dashboard card** (#11): the real Yellow in a Lovelace card, the unchanged firmware headers and LVGL compiled to
+  WebAssembly (`web/`, one module per language). Touch like on the device; follows the device's character,
+  decoration, mood, tension and energy and a weather entity. Install and build: `docs/card.md` (+ German copy); the
+  files are attached to the release.
 - `docs_de/FEATURES.md`: German feature list
 
 - `docs/homeassistant.md` (+ German copy): setup, entities, language, every blueprint with import button and example;

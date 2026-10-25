@@ -131,6 +131,7 @@ Einrichtung, Entitäten und Blueprints im Detail: [docs_de/homeassistant.md](hom
 | Funktion | Beschreibung | Seit |
 |---|---|---|
 | Geräte-Entitäten | Über die ESPHome-API: Regler für Stimmung, Anspannung und Energie; Schalter für Schlafen, Nachts aus, Weckmodus und Auto-Helligkeit; Auswahlen für Ansicht, Deko und Figur; Knöpfe für Post abspielen, Post leeren, Frage abbrechen und die drei Spiele; Sensoren für wartende Nachrichten, Tageszähler, sichtbar, WLAN-Name, Helligkeit und freien Speicher; Hintergrundlicht und Status-LED als Lichter. | 0.1.0 |
+| Dashboard-Karte | Das echte Yellow im Browser als Lovelace-Karte (dieselbe Firmware, WebAssembly): Touch wie auf dem Gerät, folgt Figur, Deko und Reglern des Geräts und dem Wetter; ein eigenes Yellow, ohne Befehle oder Nachrichten. [docs_de/card.md](card.md) | 0.3.0 |
 | Blueprint: Daten senden | Wetter, nächster Wecker, nächster Termin, eine Hinweiszeile, Außen-/Raumtemperatur und Feuchte. | 0.1.0 |
 | Blueprint: Türklingel | Schickt das Klingel-Ereignis. | 0.1.0 |
 | Blueprint: Ring des Sprachassistenten | Yellow schaut hin, wenn der LED-Ring des Assistenten leuchtet. | 0.1.0 |

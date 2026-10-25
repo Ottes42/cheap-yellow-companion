@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Test the card without Home Assistant: put it next to yellow-card.js and open it; hass is faked (window.setState). -->
+<meta charset="utf-8">
+<body style="background:#111;margin:0;padding:16px;max-width:480px">
+<yellow-card id="card"></yellow-card>
+<div style="height:3000px"></div>
+<script type="module">
+  import './yellow-card.js';
+  const card = document.getElementById('card');
+  const lang = new URLSearchParams(location.search).get('lang') ?? 'en';
+  card.setConfig({ language: lang, character: 'select.yellow_character', decor: 'select.yellow_decoration',
+    mood: 'number.yellow_mood', tension: 'number.yellow_tension', energy: 'number.yellow_energy', weather: 'weather.test' });
+  const states = {
+    'select.yellow_character': { state: 'Okti', attributes: { options: ['Okti', 'Robot', 'Fox'] } },
+    'select.yellow_decoration': { state: 'Auto', attributes: { options: ['Auto', 'Off', 'Halloween', 'Christmas'] } },
+    'number.yellow_mood': { state: '0' }, 'number.yellow_tension': { state: '20' }, 'number.yellow_energy': { state: '70' },
+    'weather.test': { state: 'rainy', attributes: { temperature: 7.5, temperature_unit: '°C' } },
+  };
+  window.setState = (id, state) => { states[id] = { ...states[id], state }; card.hass = { states: { ...states } }; };
+  card.hass = { states: { ...states } };
+</script>

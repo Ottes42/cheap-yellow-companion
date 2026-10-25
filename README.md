@@ -96,7 +96,7 @@ same keys.
 
 Setup, entities, language and all blueprints with import buttons: **[docs/homeassistant.md](docs/homeassistant.md)**.
 Blueprints today: send data (weather, alarm, appointment, climate), doorbell, voice assistant LED ring, read receipt,
-message script. Anything else: publish a JSON command to `yellow/<device>/command` (see topics above).
+message script. Yellow as a dashboard card (WebAssembly): **[docs/card.md](docs/card.md)**. Anything else: publish a JSON command to `yellow/<device>/command` (see topics above).
 
 ## Status
 

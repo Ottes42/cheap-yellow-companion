@@ -130,6 +130,7 @@ Setup, entities and blueprints in detail: [docs/homeassistant.md](docs/homeassis
 | Feature | Description | Since |
 |---|---|---|
 | Device entities | Over the ESPHome API: sliders for mood, tension and energy; switches for sleep, night off, wake-up mode and auto brightness; selects for view, decoration and character; buttons for play post, clear post, cancel question and the three games; sensors for waiting messages, today's counters, visible, Wi-Fi name, light level and free memory; display backlight and status LED as lights. | 0.1.0 |
+| Dashboard card | The real Yellow in the browser as a Lovelace card (same firmware, WebAssembly): touch like on the device, follows the device's character, decoration and sliders and the weather; its own Yellow, without commands or messages. [docs/card.md](docs/card.md) | 0.3.0 |
 | Blueprint: send data | Weather, next alarm, next appointment, a hint line, outdoor/room temperature and humidity. | 0.1.0 |
 | Blueprint: doorbell | Sends the doorbell event. | 0.1.0 |
 | Blueprint: voice assistant ring | Yellow looks over when the assistant's LED ring lights up. | 0.1.0 |
