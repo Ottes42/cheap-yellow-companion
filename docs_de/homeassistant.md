@@ -78,6 +78,7 @@ und Raumtemperatur, Raumfeuchte. Läuft alle 10 Minuten, beim Start von Home Ass
 | `alarm` | optional: Zeitstempel-Sensor, z. B. der nächste Wecker vom Handy |
 | `calendar` | optional: Kalender für den nächsten Termin heute |
 | `notice` | optional: Entität als zusätzliche Zeile (z. B. Müllabfuhr); `-` oder leer blendet sie aus |
+| `progress` | optional: Entität, die beim Halten als Letztes erscheint (z. B. Template-Sensor „Noch 7 Punkte bis zum Hut“); kurz halten |
 | `outdoor_temp`, `room_temp`, `room_humidity` | optionale Sensoren |
 
 ```yaml
@@ -110,6 +111,59 @@ automation:
       input:
         device: yellow
         ai_task: ai_task.mein_llm
+```
+
+### Pflanzen-Tagebuch
+
+[![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_plant.yaml)
+`automation/yellow_plant.yaml`
+
+Yellow bedankt sich, wenn die Pflanze gegossen wird (die Bodenfeuchte steigt in einem Schritt um mindestens `jump`
+Punkte), und tanzt. Wurde sie `days` Tage nicht gegossen **und** liegt die Feuchte unter `dry`, wird er einmal am Tag
+ab `time` vorwurfsvoll: Gießkanne, hängende Arme und ein Schild, das spitzer wird (nach 2× und 3× den Tagen). Mit
+`visible` (Sensor „sichtbar“ des Geräts) reagiert er live, nur wenn man ihn sieht; ohne kommt der Vorwurf als Post.
+**Vorher einen `input_datetime`-Helfer anlegen** (Datum und Uhrzeit), z. B. „Pflanze zuletzt gegossen“; der
+Blueprint setzt ihn, und man kann ihn von Hand setzen, wenn der Sensor das Gießen nicht merkt. Eingänge: `device`,
+`language`, `moisture`, `last_watered`, `days` (5), `dry` (30 %, 100 = nur Tage), `jump` (10), `time` (18:00),
+`visible`, `name`.
+
+```yaml
+automation:
+  - use_blueprint:
+      path: Ottes42/yellow_plant.yaml
+      input:
+        device: yellow
+        language: de
+        moisture: sensor.pflanze_feuchte
+        last_watered: input_datetime.pflanze_gegossen
+        visible: binary_sensor.yellow_sichtbar
+        name: der Kaktus
+```
+
+### Begrüßen, wenn jemand reinkommt
+
+[![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_greet.yaml)
+`automation/yellow_greet.yaml`
+
+Kommt jemand herein, schaut Yellow hin (optional `direction`), winkt und zeigt „Hallo {name}!“ oder eine von ein
+paar trockenen Varianten (oder den eigenen `text`). Jede Anwesenheits-Entität geht: ein Bermuda-Raumsensor
+(`room_state` = Name des Bereichs; braucht einen Bluetooth-Proxy im Raum, einen eigenen kleinen ESP32 – nicht auf
+Yellow, dafür reicht der RAM nicht), ein Belegungs-Binärsensor (`on`), eine Person (`home`) oder zum Testen ein
+`input_boolean`. Er grüßt erst, wenn die Person `away_minutes` (15) woanders war und die Anwesenheit `settle`
+Sekunden (30) hält; flatternde Anwesenheit wiederholt ihn also nicht. Mit `visible` entfällt ein Gruß, den niemand
+sieht. Eine Instanz pro Person.
+
+```yaml
+automation:
+  - use_blueprint:
+      path: Ottes42/yellow_greet.yaml
+      input:
+        device: yellow
+        language: de
+        presence: sensor.anna_handy_bereich
+        room_state: Büro
+        name: Anna
+        visible: binary_sensor.yellow_sichtbar
 ```
 
 ### Türklingel

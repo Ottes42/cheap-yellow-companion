@@ -147,6 +147,11 @@ class Companion {
       kind_ = a;
       return;
     }
+    if (mini_ != nullptr) {  // the night mini shows the old character: rebuilt by the next view run
+      lv_obj_delete(mini_);
+      mini_ = mini_body_ = mini_z_ = mini_dot_ = nullptr;
+      mini_on_ = false;
+    }
     bool was_on = visible_;
     visible(false);  // still with the old character: color() would otherwise touch Okti arms that do not exist (crash 2026-10-25)
     kind_ = a;
@@ -155,6 +160,7 @@ class Companion {
   }
 
   bool is_visible() const { return visible_; }
+  bool is_away() const { return away_; }
   // Nobody may touch LVGL objects before build() (on_boot). Selects fire on_value already
   // during setup, before LVGL: that hung the board (task WDT, boot loop, 2026-10-24).
   bool ready() const { return root_ != nullptr; }
@@ -587,6 +593,9 @@ class Companion {
   bool sleeping() const { return sleeping_; }
   void sleep_scene();
   void sleep_tick(uint32_t now_ms);
+  // Tiny sleeping character next to the dim clock in the dark (#19); built once as a child of the clock view
+  void night_sleeper(lv_obj_t *clock_view, bool on);
+  void night_sleeper_tick(uint32_t now_ms);
 
   // Fright at sudden light (room was dark, lamp goes on): flinches, squeezes the eyes shut, different per character
   void light_scare();
@@ -761,6 +770,7 @@ class Companion {
 
   // every 50 ms from the YAML
   void tick() {
+    if (mini_on_) night_sleeper_tick(esphome::millis());  // runs while Yellow is hidden
     if (!visible_) return;
     uint32_t now_ms = esphome::millis();
     if (sleeping_) {  // sleeping: only breathing, decoration and weather keep running
@@ -1470,6 +1480,10 @@ class Companion {
   uint32_t fist_start_{0}, fist_until_{0}, sparks_start_{0};
   int counts_[4]{};
   bool away_{false};
+  lv_obj_t *mini_{}, *mini_body_{}, *mini_z_{}, *mini_dot_{};
+  lv_point_precise_t mini_pts_[2][3]{};  // fox ears of the night mini (LVGL keeps pointers to them)
+  bool mini_on_{false};
+  uint32_t mini_next_{0};
   bool sleeping_{false};
   lv_obj_t *network_symbol_{}, *network_text_{};
   int network_level_{0};

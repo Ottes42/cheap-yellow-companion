@@ -54,6 +54,7 @@ Wo es steht: `esphome/yellow.h` (Klasse `Companion`, Tick-Schleife) und `esphome
 | Folgt dem Finger | Die Augen folgen dem Finger; der nächste Arm (Okti), die Hand des Roboters oder die Pfote des Fuchses greift danach. | 0.1.0 |
 | Streicheln (wischen) | Wischen streichelt ihn: froh, errötet, warme LED. Meldet, welches Schild gerade zu sehen war (sein „Lieblingsspruch“). | 0.1.0 |
 | Halten | Langer Druck zeigt die Infos des Tages als Schilder: Wecker, Termin, Wetter, Hinweis, Raumtemperatur. | 0.1.0 |
+| Fortschritt und Rekorde | Beim Halten kommen dazu eine Fortschrittszeile aus Home Assistant (`data/progress`, z. B. „Noch 7 Punkte bis zum Hut“) und die Rekorde des Geräts: schnellste Reaktionszeit und meiste Simon-Runden (überstehen Neustarts). | 0.4.0 |
 | 4× schnell tippen | Mag er nicht: schwindlig und „Bitte nicht.“; Okti verschwindet manchmal in Tinte, der Roboter glitcht. | 0.1.0 |
 | Faustgruß | Ab und zu (oder per Befehl) kommt eine Faust nach vorn mit „Faust?“; antippen gibt ein „Bumm!“ mit Funken, sonst ist er nach 8 s enttäuscht. | 0.1.0 |
 | Hilfeseite | **?** unten rechts zeigt, wie man Yellow bedient; jeder Tipp schließt sie, nach 20 s schließt sie sich selbst. | 0.1.0 |
@@ -99,6 +100,7 @@ Wo es steht: `esphome/yellow.h` (Klasse `Companion`, Tick-Schleife) und `esphome
 | Funktion | Beschreibung | Seit |
 |---|---|---|
 | Nachtregel | Im dunklen Raum (Lichtsensor) zeigt sich Yellow nie und reagiert nicht; Antippen zeigt 30 s eine ganz schwache Uhr. Optional: Bildschirm nachts ganz aus. | 0.1.0 |
+| Nacht-Mini | Im Dunkeln liegt ein winziger schlafender Yellow neben der schwachen Uhr (Okti unter der Decke, der Fuchs eingerollt, der Roboter im Standby), atmet, ein „z“ steigt auf. | 0.4.0 |
 | Uhr-Ansicht | Uhr im Querformat mit blinkendem Doppelpunkt, Datum, Raum- und Außenklima, nächstem Wecker, nächstem Termin, Wetter und einer Hinweiszeile (leere Zeilen verschwinden). Tag- und Nachtfarben. | 0.1.0 |
 | Ansicht-Auswahl | Auto, immer Yellow oder immer Uhr. | 0.1.0 |
 | Weckmodus | Ein Schalter, mit dem Yellow im Dunkeln sichtbar sein darf (für eine Sonnenaufgangs-Automation). | 0.1.0 |
@@ -135,6 +137,8 @@ Einrichtung, Entitäten und Blueprints im Detail: [docs_de/homeassistant.md](hom
 | Dashboard-Karte | Das echte Yellow im Browser als Lovelace-Karte (dieselbe Firmware, WebAssembly): Touch wie auf dem Gerät, folgt Figur, Deko und Reglern des Geräts und dem Wetter; ein eigenes Yellow, ohne Befehle oder Nachrichten. [docs_de/card.md](card.md) | 0.3.0 |
 | Blueprint: Daten senden | Wetter, nächster Wecker, nächster Termin, eine Hinweiszeile, Außen-/Raumtemperatur und Feuchte. | 0.1.0 |
 | Blueprint: Gruß-Zeile | Schreibt jeden Morgen die Zusatzzeile für den Gruß beim ersten Tipp, per AI Task (beliebiges LLM) oder aus einer Entität. | 0.4.0 |
+| Blueprint: Pflanzen-Tagebuch | Dank fürs Gießen; nach einigen Tagen ohne Wasser bei trockener Erde täglich ein immer spitzerer Vorwurf mit Gießkanne. | 0.4.0 |
+| Blueprint: Begrüßen | Winkt und grüßt eine Person, die den Raum betritt (Bermuda, Belegung, Person oder beliebige Entität). | 0.4.0 |
 | Blueprint: Türklingel | Schickt das Klingel-Ereignis. | 0.1.0 |
 | Blueprint: Ring des Sprachassistenten | Yellow schaut hin, wenn der LED-Ring des Assistenten leuchtet. | 0.1.0 |
 | Blueprint: Lesebestätigung | Eigene Aktionen, wenn eine Nachricht oder ein Liebesbrief gelesen wurde. | 0.1.0 |

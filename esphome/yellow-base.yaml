@@ -83,6 +83,7 @@ esphome:
           };
           yellow::companion.game_over = [](const std::string &game, int value) {
             event("game", "", game, value);
+            id(store_record).execute(game, value);
           };
           yellow::companion.answer = [](const std::string &a) {
             event("answer", a.empty() ? std::string(yellow::txt::NO_ANSWER) : a, "", 0);
@@ -112,6 +113,17 @@ esphome:
           else yellow::companion.message(str_sprintf(yellow::txt::GREETING_FMT, person.c_str(), companion_name.c_str()), false, 3);
 
 globals:
+  - id: dark_test # command dark_test: the view treats the room as dark (backlight unchanged)
+    type: bool
+    initial_value: "false"
+  - id: best_reaction_ms # device records, written only when beaten
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: best_simon
+    type: int
+    restore_value: true
+    initial_value: "0"
   - id: greeted_day # day of the year of the last first-tap greeting (kept over reboots: one greeting a day)
     type: int
     restore_value: true
@@ -376,6 +388,36 @@ script:
           if (!std::isnan(a)) s += str_sprintf("  \U000F18D7 %.0f°", a);
           if (yellow::txt::DECIMAL_COMMA) for (auto &ch : s) if (ch == '.') ch = ',';
           lv_label_set_text(id(z_climate), s.c_str());
+  - id: show_day_info # hold Yellow (or command hold): the day's info, progress from HA and the records as signs
+    then:
+      - lambda: |-
+          auto good = [](const std::string &x) { return !x.empty() && x != "-" && x != "unknown" && x != "unavailable"; };
+          std::string t;
+          if (good(id(ha_alarm).state)) t += id(ha_alarm).state + "\n";
+          if (good(id(ha_appointment).state)) t += id(ha_appointment).state + "\n";
+          if (good(id(ha_weather).state)) t += id(ha_weather).state + "\n";
+          if (good(id(ha_notice).state)) t += id(ha_notice).state + "\n";
+          float k = id(climate_temp).state;
+          if (!std::isnan(k)) {
+            std::string z = str_sprintf(yellow::txt::HERE_TEMP, k);
+            if (yellow::txt::DECIMAL_COMMA) for (auto &ch : z) if (ch == '.') ch = ',';
+            t += z + "\n";
+          }
+          if (good(id(ha_progress).state)) t += id(ha_progress).state + "\n";
+          // records last: the least important, dropped first by the 8-sign cap
+          int r = id(best_reaction_ms), m = id(best_simon);
+          if (r > 0 && m > 0) t += str_sprintf(yellow::txt::RECORDS_FMT, r, m);
+          else if (r > 0) t += str_sprintf(yellow::txt::RECORD_REACTION_FMT, r);
+          else if (m > 0) t += str_sprintf(yellow::txt::RECORD_SIMON_FMT, m);
+          yellow::companion.message(t.empty() ? std::string(yellow::txt::NOTHING_TODAY) : t, false, 3);
+  - id: store_record # game result → device record (reaction: fastest ms, simon: most rounds); -2 = aborted
+    parameters:
+      game: string
+      value: int
+    then:
+      - lambda: |-
+          if (game == "reaction" && value > 0 && (id(best_reaction_ms) == 0 || value < id(best_reaction_ms))) id(best_reaction_ms) = value;
+          else if (game == "simon" && value > id(best_simon)) id(best_simon) = value;
   - id: log_activity
     mode: queued
     parameters:
@@ -421,7 +463,7 @@ script:
       - lambda: |-
           if (!yellow::companion.ready()) return; // selects fire before LVGL is up (boot loop 2026-10-24)
           float v = id(ldr).state;
-          bool dark = !std::isnan(v) && v >= ${ldr_dark};
+          bool dark = id(dark_test) || (!std::isnan(v) && v >= ${ldr_dark});
           const size_t m = id(view_mode).active_index().value_or(0);
           // Auto and Yellow: Yellow as soon as there is light; never in the dark (then only the dim clock when tapped)
           bool yellow = (!dark || id(wake_mode).state) && m != 2;
@@ -432,6 +474,7 @@ script:
           if (yellow) lv_obj_add_flag(id(clock_view), LV_OBJ_FLAG_HIDDEN);
           else lv_obj_clear_flag(id(clock_view), LV_OBJ_FLAG_HIDDEN);
           yellow::companion.visible(yellow);
+          yellow::companion.night_sleeper(id(clock_view), dark && !yellow && !yellow::companion.is_away());
           static bool was_dark = false;  // light goes on → Yellow gets a fright
           if (was_dark && !dark && yellow) yellow::companion.light_scare();
           if (!std::isnan(v)) was_dark = dark;
@@ -697,20 +740,7 @@ lvgl:
                   condition:
                     lambda: return yellow::companion.is_visible() && !yellow::companion.petting() && !yellow::companion.help_open();
                   then:
-                    - lambda: |-
-                        auto good = [](const std::string &x) { return !x.empty() && x != "-" && x != "unknown" && x != "unavailable"; };
-                        std::string t;
-                        if (good(id(ha_alarm).state)) t += id(ha_alarm).state + "\n";
-                        if (good(id(ha_appointment).state)) t += id(ha_appointment).state + "\n";
-                        if (good(id(ha_weather).state)) t += id(ha_weather).state + "\n";
-                        if (good(id(ha_notice).state)) t += id(ha_notice).state + "\n";
-                        float k = id(climate_temp).state;
-                        if (!std::isnan(k)) {
-                          std::string z = str_sprintf(yellow::txt::HERE_TEMP, k);
-                          if (yellow::txt::DECIMAL_COMMA) for (auto &ch : z) if (ch == '.') ch = ',';
-                          t += z;
-                        }
-                        yellow::companion.message(t.empty() ? std::string(yellow::txt::NOTHING_TODAY) : t, false, 3);
+                    - script.execute: show_day_info
             on_short_click:
               - if:
                   condition:

@@ -6,6 +6,12 @@
   weather, optional line from `data/greeting`), once a day, remembered over reboots. New blueprint
   `yellow_greeting.yaml` writes that line every morning from an AI Task or an entity. Test commands `greeting_test`
   and `tap`.
+- **Progress and records when held** (#22): a progress line from `data/progress` (new optional input in the
+  send-data blueprint) and the device's records (fastest reaction, most Simon rounds, kept in flash). Test commands
+  `hold` and `record_test`.
+- **Night mini** (#19): in the dark a tiny sleeping character lies next to the dim clock. Test command `dark_test`.
+- **Blueprint plant diary** (#27): thanks for watering, mild and then pointed scolding when dry and overdue.
+- **Blueprint greet** (#29): wave and greet a person entering the room, from any presence entity.
 - Fox: 17 more sayings about courage and fear (30 in total).
 - Okti: 20 more sayings (mostly clumsy, 30 in total); robot: 19 more (overly precise, 30 in total).
 

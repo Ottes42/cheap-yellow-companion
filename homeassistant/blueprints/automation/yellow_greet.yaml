@@ -1,0 +1,124 @@
+blueprint:
+  name: Yellow – greet someone entering the room
+  description: >-
+    When a person comes into the room, Yellow looks over, waves and shows a greeting with their name. Works with any
+    presence entity: a Bermuda area sensor (state = area name, needs a Bluetooth proxy in the room, not on Yellow),
+    an occupancy binary sensor (`on`), a person or device tracker (`home`), or an input_boolean for testing. Only after
+    the person was elsewhere for a while, so flapping presence does not repeat it. One instance per person.
+  domain: automation
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_greet.yaml
+  input:
+    device:
+      name: Device
+      description: The `device` substitution of the device (MQTT topics yellow/<device>/…)
+      default: yellow
+      selector:
+        text:
+    language:
+      name: Language
+      default: en
+      selector:
+        select:
+          options: [en, de]
+    presence:
+      name: Presence entity
+      selector:
+        entity:
+    room_state:
+      name: State "in the room"
+      description: The area name for Bermuda, `on` for a binary sensor or input_boolean, `home` for a person
+      default: "on"
+      selector:
+        text:
+    name:
+      name: Name
+      description: Shown on the sign; empty = a greeting without a name
+      default: ""
+      selector:
+        text:
+    away_minutes:
+      name: Minimum time elsewhere
+      default: 15
+      selector:
+        number:
+          min: 0
+          max: 240
+          unit_of_measurement: min
+    settle:
+      name: Settle time
+      description: The presence must stay this long before Yellow reacts
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          unit_of_measurement: s
+    visible:
+      name: Yellow visible (optional)
+      description: The device's "visible" binary sensor; then a greeting nobody can see is skipped
+      default: ""
+      selector:
+        entity:
+          domain: binary_sensor
+    direction:
+      name: Look towards (optional)
+      description: Where the door is, seen from Yellow
+      default: none
+      selector:
+        select:
+          options: [none, left, right, center]
+    text:
+      name: Own greeting (optional)
+      description: Replaces the built-in lines; `{name}` is replaced by the name
+      default: ""
+      selector:
+        text:
+
+mode: queued
+max: 3
+
+triggers:
+  - trigger: state
+    entity_id: !input presence
+    to: !input room_state
+    for:
+      seconds: !input settle
+
+variables:
+  device: !input device
+  language: !input language
+  name: !input name
+  away_minutes: !input away_minutes
+  visible: !input visible
+  direction: !input direction
+  own: !input text
+
+conditions:
+  - condition: template # not after a restart or re-pairing, and only after some time elsewhere (filters flapping)
+    value_template: >-
+      {{ trigger.from_state is not none and trigger.from_state.state not in ['unavailable', 'unknown']
+         and (trigger.to_state.last_changed - trigger.from_state.last_changed).total_seconds() >= away_minutes * 60 }}
+  - condition: template
+    value_template: "{{ visible == '' or is_state(visible, 'on') }}"
+
+actions:
+  - variables:
+      lines: >-
+        {% if language == 'de' %}{{ ['Hallo {name}!', '{name}! Endlich.', 'Oh. {name}.'] if name else ['Hallo!', 'Oh. Hallo.', 'Endlich.'] }}
+        {% else %}{{ ['Hi {name}!', '{name}! Finally.', 'Oh. {name}.'] if name else ['Hi!', 'Oh. Hello.', 'Finally.'] }}{% endif %}
+      greeting: "{{ (own if own else lines | random).replace('{name}', name) }}"
+      topic: "yellow/{{ device }}/command"
+  - if: "{{ direction != 'none' }}"
+    then:
+      - action: mqtt.publish
+        data:
+          topic: "{{ topic }}"
+          payload: "{{ {'action': 'look', 'direction': direction} | tojson }}"
+  - action: mqtt.publish
+    data:
+      topic: "{{ topic }}"
+      payload: '{"action": "gesture", "gesture": "wave"}'
+  - action: mqtt.publish
+    data:
+      topic: "{{ topic }}"
+      payload: "{{ {'action': 'message', 'text': greeting, 'seconds': 4} | tojson }}"

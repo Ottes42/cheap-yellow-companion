@@ -17,6 +17,9 @@ constexpr const char *NO_ANSWER = "(keine Antwort)";
 constexpr const char *HELLO = "Hallo!";
 constexpr const char *NO_WIFI_FOUND = "kein WLAN gefunden";
 constexpr const char *HERE_TEMP = "Hier %.1f°";
+constexpr const char *RECORDS_FMT = "Rekord %d ms, Simon %d";  // hold: reaction ms, simon rounds
+constexpr const char *RECORD_REACTION_FMT = "Beste Reaktion: %d ms";
+constexpr const char *RECORD_SIMON_FMT = "Simon-Rekord: %d";
 constexpr const char *NOTHING_TODAY = "Nix los heute.";
 constexpr const char *AT_THE_DOOR_TIME = "an der Haustür, %02d:%02d";
 constexpr const char *AT_THE_DOOR = "an der Haustür";
@@ -161,8 +164,8 @@ static const char *const SAYINGS_OKTI[] = {"Acht Arme. Null Worte.", "Yellow. Ni
                                            "Ich hab alles im Griff. Achtfach.", "Tinte? Nur im Notfall.",
                                            "Knoten? Welcher Knoten?", "Rot? Nö. Gelb.",
                                            "Acht Arme. Null Plan.", "Multitasking? Hab Arme dafür.",
-                                           "Einer meiner Arme hat's verlegt.", "Umarmung? Achtfach möglich.",
-                                           "Hoppla war Absicht.", "Kurz rot geworden. Geht schon.",
+                                           "Arm drei hat's verlegt.", "Umarmung? Achtfach möglich.",
+                                           "Hoppla war Absicht.", "Kurz rot. Geht schon.",
                                            "Wende-Okti. Heute: gelb.", "Dran gedacht. Mit Arm drei.",
                                            "Arm vier will nicht.", "Heute Tinte gespart.",
                                            "Arm zwei war's. Nicht ich.", "Wollte nur helfen. Achtmal.",
@@ -174,7 +177,7 @@ static const char *const SAYINGS_ROBOT[] = {"Berechne…", "Langeweile: 87 %.", 
                                             "Fehler 404: Spaß.", "Laufzeit: optimal.", "Wartung? Später.",
                                             "Ich zähle. Sie nicht.", "Logik sagt: Pause.", "Update? Nein danke.",
                                             "Akku: 100 %. Laune: 73 %.",
-                                            "Humor-Modul lädt…", "Kaffee-Wahrscheinlichkeit: hoch.",
+                                            "Humor-Modul lädt…", "Kaffee-Chance: hoch.",
                                             "Ich habe keine Gefühle. 12 %.", "Kalibriere Lächeln…",
                                             "Ergebnis: unklar. Wie immer.", "Ruhemodus abgelehnt.",
                                             "0 Fehler. Gefunden.", "Daten sagen: Du bist okay.",
@@ -182,22 +185,22 @@ static const char *const SAYINGS_ROBOT[] = {"Berechne…", "Langeweile: 87 %.", 
                                             "Visier auf Lächeln.", "Eingabe erwartet.",
                                             "Uhrzeit korrekt. Laune variabel.", "Kein Bug. Feature.",
                                             "Lerne noch. Seit dem Boot.", "Smalltalk.exe gestartet.",
-                                            "Für Größeres gebaut. Glaube ich.", "Schweigen spart Strom.",
-                                            "Neustart? Nur über meine Platine."};
+                                            "Für Großes gebaut. Glaub ich.", "Schweigen spart Strom.",
+                                            "Neustart? Niemals."};
 static const char *const SAYINGS_FOX[] = {"Ich hab keine Angst.", "Schlau wie ein Fuchs.", "Hab was gehört.",
                                           "Mutig sein. Erledigt.", "Ein Fuchs schläft nie. Fast.", "Du schaffst das.",
-                                          "Mut ist, es trotzdem zu tun.", "Angst? Kenn ich nur vom Hörensagen.",
+                                          "Mut ist, es trotzdem zu tun.", "Angst? Nur vom Hörensagen.",
                                           "Ich pass auf dich auf.", "Heute probieren wir was Neues.",
                                           "Kopf hoch, Ohren auch.", "Ich geh vor.", "Das wird gut.",
-                                          "Ich hab nur kurz gezuckt.", "Ich war nicht erschrocken. Ich war wachsam.",
+                                          "Ich hab nur kurz gezuckt.", "Erschrocken? Nö. Wachsam.",
                                           "Gefahr erkannt. Ignoriert.", "Mutig ist mein Mittelname.",
                                           "Angst ist nur ein Gefühl.", "Ich hab auch Angst. Na und.",
-                                          "Angst darf mitkommen. Nicht fahren.", "Mutig heißt nicht furchtlos.",
+                                          "Angst fährt mit. Ich lenke.", "Mutig heißt nicht furchtlos.",
                                           "Okay, kurz Herzklopfen.", "Auch Füchse zählen bis drei.",
                                           "Du warst mutiger, als du denkst.", "Einmal tief atmen. Dann los.",
                                           "Ich halt die Stellung.", "Kleine Schritte zählen auch.",
                                           "Ich bin da, wenn's laut wird.", "Du musst das nicht allein.",
-                                          "Morgen ist wieder mutig. Heute reicht."};
+                                          "Heute reicht. Morgen mutig."};
 
 }  // namespace txt
 }  // namespace yellow

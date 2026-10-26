@@ -68,7 +68,7 @@ Felder und Werte steht in der [englischen README](README.md#mqtt-topics-yellowde
 
 - `command` – JSON-Befehl, z. B. `{"action": "message", "text": "Hallo!", "wait": true}`
 - `data/<name>` (retained) – occasion, alarm, appointment, notice, weather, weather_condition, outdoor_temp,
-  room_temp, room_humidity, sayings, greeting (Zusatzzeile für den ersten Tipp des Tages); Ereignisse ohne retain: doorbell, nabu_ring
+  room_temp, room_humidity, sayings, greeting (Zusatzzeile für den ersten Tipp des Tages), progress (beim Halten als Letztes); Ereignisse ohne retain: doorbell, nabu_ring
 - `event` – JSON vom Gerät, `type`: read, answer, game, petted, timer_off
 - `telemetry` (retained), `status` online/offline (retained, Last Will)
 

@@ -1,0 +1,172 @@
+blueprint:
+  name: Yellow – plant diary (mild scolding)
+  description: >-
+    Yellow notices when a plant is watered (the moisture jumps up) and thanks you. If it has not been watered for some
+    days **and** the soil is dry, he gets reproachful once a day: watering can, limp arms and a sign, more pointed the
+    longer it takes. Create an `input_datetime` helper ("last watered", date and time) first; the blueprint sets it,
+    and you can set it by hand when you water without the sensor noticing. One instance per plant.
+  domain: automation
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_plant.yaml
+  input:
+    device:
+      name: Device
+      description: The `device` substitution of the device (MQTT topics yellow/<device>/…)
+      default: yellow
+      selector:
+        text:
+    language:
+      name: Language
+      default: en
+      selector:
+        select:
+          options: [en, de]
+    moisture:
+      name: Soil moisture
+      selector:
+        entity:
+          domain: sensor
+          device_class: moisture
+    last_watered:
+      name: Last watered (helper)
+      description: An input_datetime with date and time
+      selector:
+        entity:
+          domain: input_datetime
+    days:
+      name: Days without water
+      description: Scolding starts after this many days (if the soil is also dry)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 30
+    dry:
+      name: Dry below
+      description: Only scold below this moisture; 100 = by days only
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    jump:
+      name: Watering jump
+      description: A rise of at least this many points in one step counts as watering
+      default: 10
+      selector:
+        number:
+          min: 3
+          max: 50
+    time:
+      name: Time of day
+      description: Scold from this time on (once a day)
+      default: "18:00:00"
+      selector:
+        time:
+    visible:
+      name: Yellow visible (optional)
+      description: >-
+        The device's "visible" binary sensor (home profile). Then he reacts only when he can be seen, live with
+        watering can and gesture. Without it the scolding arrives as post (once a day).
+      default: ""
+      selector:
+        entity:
+          domain: binary_sensor
+    name:
+      name: Plant name (optional)
+      description: Used in the signs, e.g. "the cactus"; empty = "the plant"
+      default: ""
+      selector:
+        text:
+
+mode: queued
+max: 2
+
+trigger_variables:
+  visible_entity: !input visible
+
+triggers:
+  - trigger: state
+    entity_id: !input moisture
+    id: moisture
+  - trigger: time
+    at: !input time
+    id: time
+  - trigger: template # state trigger is invalid with an empty optional entity
+    value_template: "{{ visible_entity != '' and is_state(visible_entity, 'on') }}"
+    id: visible
+
+variables:
+  device: !input device
+  language: !input language
+  moisture: !input moisture
+  last_watered: !input last_watered
+  days: !input days
+  dry: !input dry
+  jump: !input jump
+  time: !input time
+  name: !input name
+  watered: >-
+    {{ trigger.id == 'moisture' and trigger.from_state is not none and trigger.to_state is not none
+       and trigger.from_state.state | is_number and trigger.to_state.state | is_number
+       and trigger.to_state.state | float - trigger.from_state.state | float >= jump }}
+  last: "{{ as_datetime(states(last_watered), none) }}"
+  since: "{{ ((now() - as_local(as_datetime(states(last_watered), none))).total_seconds() / 86400) | int if last else 0 }}"
+  dry_now: "{{ states(moisture) | is_number and states(moisture) | float < dry }}"
+  seen: "{{ visible_entity == '' or is_state(visible_entity, 'on') }}"
+  done_today: >-
+    {{ this.attributes.last_triggered is not none and as_local(this.attributes.last_triggered).date() == now().date() }}
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ watered or (trigger.id != 'moisture' and since >= days and dry_now and now() >= today_at(time)
+                     and seen and not done_today) }}
+
+actions:
+  - variables:
+      t: >-
+        {% set de = language == 'de' %}
+        {% set plant = name if name else ('die Pflanze' if de else 'the plant') %}
+        {% if watered %}{{ 'Danke fürs Gießen!' if de else 'Thanks for watering!' }}
+        {% elif since >= 3 * days %}{{ 'Ich gieß gleich selbst. Irgendwie.' if de else "I'll water it myself. Somehow." }}
+        {% elif since >= 2 * days %}{{ ('Tag %d ohne Wasser.' if de else 'Day %d without water.') | format(since) }}
+        {% else %}{{ ('Wann hat %s zuletzt Wasser bekommen?' if de else 'When did %s last get water?') | format(plant) }}{% endif %}
+      topic: "yellow/{{ device }}/command"
+  - if: "{{ watered }}"
+    then:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: "{{ last_watered }}"
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - if: "{{ seen }}"
+        then:
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: '{"action": "gesture", "gesture": "dance"}'
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: "{{ {'action': 'message', 'text': t | trim, 'seconds': 4} | tojson }}"
+    else:
+      - if: "{{ visible_entity != '' }}"
+        then:
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: '{"action": "prop", "prop": "watering_can", "seconds": 10}'
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: '{"action": "gesture", "gesture": "wilt"}'
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: "{{ {'action': 'message', 'text': t | trim, 'seconds': 5} | tojson }}"
+        else:
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: "{{ {'action': 'message', 'text': t | trim, 'wait': true} | tojson }}"

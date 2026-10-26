@@ -74,6 +74,7 @@ temperature, room humidity. Runs every 10 minutes, at Home Assistant start and w
 | `alarm` | optional timestamp sensor, e.g. the phone's next alarm |
 | `calendar` | optional calendar for today's next appointment |
 | `notice` | optional entity shown as an extra row (e.g. waste collection); `-` or empty hides it |
+| `progress` | optional entity shown last when Yellow is held (e.g. a template sensor "7 points to the hat"); keep it short |
 | `outdoor_temp`, `room_temp`, `room_humidity` | optional sensors |
 
 ```yaml
@@ -106,6 +107,55 @@ automation:
       input:
         device: yellow
         ai_task: ai_task.my_llm
+```
+
+### Plant diary
+
+[![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_plant.yaml)
+`automation/yellow_plant.yaml`
+
+Yellow thanks you when the plant is watered (the soil moisture jumps up by at least `jump` points in one step) and
+dances. If it was not watered for `days` days **and** the moisture is below `dry`, he gets reproachful once a day
+from `time` on: watering can, limp arms and a sign that gets more pointed (after 2× and 3× the days). With `visible`
+(the device's "visible" sensor) he reacts live only when he can be seen; without it the scolding arrives as post.
+**First create an `input_datetime` helper** (date and time), e.g. "Plant last watered"; the blueprint sets it, and
+you can set it by hand when you water without the sensor noticing. Inputs: `device`, `language`, `moisture`,
+`last_watered`, `days` (5), `dry` (30 %, 100 = days only), `jump` (10), `time` (18:00), `visible`, `name`.
+
+```yaml
+automation:
+  - use_blueprint:
+      path: Ottes42/yellow_plant.yaml
+      input:
+        device: yellow
+        moisture: sensor.plant_moisture
+        last_watered: input_datetime.plant_last_watered
+        visible: binary_sensor.yellow_visible
+        name: the cactus
+```
+
+### Greet someone entering the room
+
+[![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_greet.yaml)
+`automation/yellow_greet.yaml`
+
+When a person comes in, Yellow looks over (optional `direction`), waves and shows "Hi {name}!" or one of a few
+dry variants (or your own `text`). Any presence entity works: a Bermuda area sensor (`room_state` = the area name;
+it needs a Bluetooth proxy in the room, a separate small ESP32 – not on Yellow, there is not enough RAM), an
+occupancy binary sensor (`on`), a person (`home`), or an `input_boolean` for testing. He only greets after the
+person was elsewhere for `away_minutes` (15) and the presence held for `settle` seconds (30), so flapping presence
+does not repeat it. With `visible` a greeting nobody can see is skipped. One instance per person.
+
+```yaml
+automation:
+  - use_blueprint:
+      path: Ottes42/yellow_greet.yaml
+      input:
+        device: yellow
+        presence: sensor.anna_phone_area
+        room_state: Office
+        name: Anna
+        visible: binary_sensor.yellow_visible
 ```
 
 ### Doorbell

@@ -2,7 +2,7 @@ blueprint:
   name: Yellow – send data (weather, alarm, appointment, climate)
   description: >-
     Sends the data Yellow shows in his clock view and weather to `yellow/<device>/data/…` (retained): weather text and
-    condition from a weather entity (today, from 14:00 tomorrow), next alarm, next appointment of the day, a free notice,
+    condition from a weather entity (today, from 14:00 tomorrow), next alarm, next appointment of the day, a free notice, a progress line,
     outdoor and room temperature, room humidity. Runs every 10 minutes, at Home Assistant start and as soon as the
     device comes online. Leave optional inputs empty to hide that line.
   domain: automation
@@ -44,6 +44,14 @@ blueprint:
     notice:
       name: Notice (optional)
       description: Any entity whose state is shown as an extra line (e.g. waste collection); "-" or empty hides it
+      default: ""
+      selector:
+        entity:
+    progress:
+      name: Progress line (optional)
+      description: >-
+        Any entity whose state is shown last when Yellow is held, e.g. "7 points to the hat" (a template sensor of your
+        own); "-" or empty hides it. Keep it short: the hold shows at most 8 signs.
       default: ""
       selector:
         entity:
@@ -90,6 +98,7 @@ variables:
   alarm: !input alarm
   calendar: !input calendar
   notice: !input notice
+  progress: !input progress
   outdoor_temp: !input outdoor_temp
   room_temp: !input room_temp
   room_humidity: !input room_humidity
@@ -130,6 +139,7 @@ actions:
           {% set e = events | first if events else none %}
           {{ (as_local(as_datetime(e.start)).strftime('%H:%M ') if 'T' in e.start else '') ~ e.summary if e else '-' }}
         notice: "{{ states(notice) if notice and states(notice) not in ['unknown', 'unavailable', ''] else '-' }}"
+        progress: "{{ states(progress) if progress and states(progress) not in ['unknown', 'unavailable', ''] else ('-' if progress else '') }}"
         outdoor_temp: "{{ states(outdoor_temp) if outdoor_temp else '' }}"
         room_temp: "{{ states(room_temp) if room_temp else '' }}"
         room_humidity: "{{ states(room_humidity) if room_humidity else '' }}"

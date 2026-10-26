@@ -528,4 +528,57 @@ inline void Companion::scare_tick(uint32_t now_ms) {
   show_later(kind_ == ROBOT ? txt::BRIGHTNESS_800 : (rnd(2) ? txt::LIGHT_EYES : txt::WHO_TURNED_ON), 1300);
 }
 
+inline void Companion::night_sleeper(lv_obj_t *clock_view, bool on) {
+  if (!ready() || on == mini_on_) return;
+  mini_on_ = on;
+  if (on && mini_ == nullptr) {  // about 44 x 36 px right of the big clock, plain shapes only (no layer)
+    mini_ = shape(clock_view, 273, 28, 47, 44, 0, 0);  // widest time "04:44" ends at x 271
+    transparent(mini_);
+    mini_body_ = shape(mini_, 0, 8, 48, 36, 0, 0);
+    transparent(mini_body_);
+    lv_obj_t *b = mini_body_;
+    if (kind_ == OKTI) {  // head peeking out of a blue blanket, two arm tips
+      shape(b, 9, 2, 30, 26, YELLOW);
+      shape(b, 15, 12, 7, 2, EYE, 1);
+      shape(b, 26, 12, 7, 2, EYE, 1);
+      shape(b, 2, 18, 44, 16, 0x5A7AE8, 6);
+      shape(b, 4, 15, 7, 7, YELLOW);
+      shape(b, 37, 15, 7, 7, YELLOW);
+    } else if (kind_ == FOX) {  // curled up: body, head with pointed ears and cream muzzle, cream tail tip in front
+      shape(b, 12, 12, 32, 22, FOX_ORANGE);
+      static const int ear[2][3][2] = {{{6, 12}, {8, 1}, {13, 9}}, {{15, 9}, {20, 0}, {24, 10}}};
+      for (int k = 0; k < 2; k++) {
+        for (int j = 0; j < 3; j++) mini_pts_[k][j] = {(lv_value_precise_t) ear[k][j][0], (lv_value_precise_t) ear[k][j][1]};
+        lv_line_set_points(line(b, 5, FOX_ORANGE), mini_pts_[k], 3);
+      }
+      shape(b, 4, 7, 23, 19, FOX_ORANGE);
+      shape(b, 1, 15, 13, 10, FOX_CREAM);
+      shape(b, 0, 16, 4, 4, EYE);
+      shape(b, 12, 13, 6, 2, EYE, 1);
+      shape(b, 4, 24, 36, 10, FOX_ORANGE);
+      shape(b, 32, 22, 13, 11, FOX_CREAM);
+    } else {  // robot in standby: head, dark visor, orange dot
+      shape(b, 23, 0, 2, 8, METAL, 0);
+      shape(b, 8, 7, 32, 26, YELLOW, 6);
+      shape(b, 12, 13, 24, 11, VISOR, 4);
+      mini_dot_ = shape(b, 22, 16, 5, 5, 0xFF8A3D);
+    }
+    mini_z_ = lv_label_create(mini_);
+    lv_obj_set_style_text_color(mini_z_, lv_color_hex(0x9FC4FF), 0);
+    lv_label_set_text(mini_z_, "z");
+    lv_obj_set_pos(mini_z_, 36, 0);
+  }
+  show(mini_, on);
+  mini_next_ = esphome::millis();  // passed() never fires for 0
+}
+
+inline void Companion::night_sleeper_tick(uint32_t now_ms) {
+  if (mini_ == nullptr || !passed(now_ms, mini_next_)) return;
+  mini_next_ = now_ms + 150;
+  uint32_t ph = now_ms % 2400;
+  lv_obj_set_y(mini_z_, 2 - (int) (ph * 10 / 2400));  // the "z" rises and starts again
+  lv_obj_set_y(mini_body_, (now_ms / 1200) % 2 ? 9 : 8);  // slow breathing, 1 px
+  if (mini_dot_) lv_obj_set_style_bg_opa(mini_dot_, ph < 1200 ? 90 + ph * 165 / 1200 : 255 - (ph - 1200) * 165 / 1200, 0);
+}
+
 }  // namespace yellow

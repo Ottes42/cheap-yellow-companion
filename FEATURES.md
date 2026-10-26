@@ -53,6 +53,7 @@ Where it lives: `esphome/yellow.h` (class `Companion`, tick loop) and `esphome/y
 | Follows your finger | Eyes follow the finger; the nearest arm (Okti), the robot's hand or the fox's paw reaches for it. | 0.1.0 |
 | Pet (swipe) | Swiping pets him: happy, blushing, warm LED. Reports which sign was showing (his "favourite line"). | 0.1.0 |
 | Hold | Long press shows the day's info as signs: alarm, appointment, weather, hint, room temperature. | 0.1.0 |
+| Progress and records | Holding also shows a progress line from Home Assistant (`data/progress`, e.g. "7 points to the hat") and the device's records: fastest reaction time and most Simon rounds (kept over reboots). | 0.4.0 |
 | 4× quick tap | He does not like it: dizzy and "please don't"; Okti sometimes vanishes in ink, the robot glitches. | 0.1.0 |
 | Fist bump | Now and then (or on command) a fist comes forward with "Fist?"; tap it for a "Boom!" with sparks, otherwise he is disappointed after 8 s. | 0.1.0 |
 | Help page | **?** bottom right shows how to use Yellow; any tap closes it, it closes itself after 20 s. | 0.1.0 |
@@ -98,6 +99,7 @@ Where it lives: `esphome/yellow.h` (class `Companion`, tick loop) and `esphome/y
 | Feature | Description | Since |
 |---|---|---|
 | Night rule | In a dark room (light sensor) Yellow never shows or reacts; a tap shows a very dim clock for 30 s. Optional: screen fully off at night. | 0.1.0 |
+| Night mini | In the dark a tiny sleeping Yellow lies next to the dim clock (Okti under a blanket, the fox curled up, the robot in standby), breathing, with a rising "z". | 0.4.0 |
 | Clock view | Landscape clock with blinking colon, date, room and outdoor climate, next alarm, next appointment, weather and a hint line (empty lines hide). Day and night colours. | 0.1.0 |
 | View select | Auto, always Yellow or always clock. | 0.1.0 |
 | Wake-up mode | A switch that lets Yellow be visible in the dark (for a sunrise alarm automation). | 0.1.0 |
@@ -134,6 +136,8 @@ Setup, entities and blueprints in detail: [docs/homeassistant.md](docs/homeassis
 | Dashboard card | The real Yellow in the browser as a Lovelace card (same firmware, WebAssembly): touch like on the device, follows the device's character, decoration and sliders and the weather; its own Yellow, without commands or messages. [docs/card.md](docs/card.md) | 0.3.0 |
 | Blueprint: send data | Weather, next alarm, next appointment, a hint line, outdoor/room temperature and humidity. | 0.1.0 |
 | Blueprint: greeting line | Writes the extra line for the first-tap greeting every morning, from an AI Task (any LLM) or any entity. | 0.4.0 |
+| Blueprint: plant diary | Thanks for watering; after some days without water and dry soil a daily, increasingly pointed scolding with watering can. | 0.4.0 |
+| Blueprint: greet | Waves and greets a person entering the room (Bermuda, occupancy, person or any entity). | 0.4.0 |
 | Blueprint: doorbell | Sends the doorbell event. | 0.1.0 |
 | Blueprint: voice assistant ring | Yellow looks over when the assistant's LED ring lights up. | 0.1.0 |
 | Blueprint: read receipt | Your actions when a message or love letter was read. | 0.1.0 |

@@ -17,6 +17,9 @@ constexpr const char *NO_ANSWER = "(no answer)";
 constexpr const char *HELLO = "Hello!";
 constexpr const char *NO_WIFI_FOUND = "no Wi-Fi found";
 constexpr const char *HERE_TEMP = "Here %.1f°";
+constexpr const char *RECORDS_FMT = "Best %d ms, Simon %d";  // hold: reaction ms, simon rounds
+constexpr const char *RECORD_REACTION_FMT = "Best reaction: %d ms";
+constexpr const char *RECORD_SIMON_FMT = "Simon record: %d";
 constexpr const char *NOTHING_TODAY = "Nothing on today.";
 constexpr const char *AT_THE_DOOR_TIME = "at the front door, %02d:%02d";
 constexpr const char *AT_THE_DOOR = "at the front door";
@@ -185,7 +188,7 @@ static const char *const SAYINGS_ROBOT[] = {"Computing…", "Boredom: 87 %.", "B
 static const char *const SAYINGS_FOX[] = {"I'm not scared.", "Clever as a fox.", "Heard something.",
                                           "Be brave. Done.", "A fox never sleeps. Almost.", "You've got this.",
                                           "Courage is doing it anyway.", "Fear? Only heard of it.",
-                                          "I've got your back.", "Let's try something new today.",
+                                          "I've got your back.", "Something new today?",
                                           "Chin up, ears too.", "I'll go first.", "This will be good.",
                                           "I only flinched a little.", "I wasn't startled. I was alert.",
                                           "Danger spotted. Ignored.", "Brave is my middle name.",
@@ -195,7 +198,7 @@ static const char *const SAYINGS_FOX[] = {"I'm not scared.", "Clever as a fox.",
                                           "You were braver than you think.", "One deep breath. Then go.",
                                           "I'll hold the fort.", "Small steps count too.",
                                           "I'm here when it gets loud.", "You don't have to do it alone.",
-                                          "Brave again tomorrow. Today's enough."};
+                                          "Brave tomorrow. Today's enough."};
 
 }  // namespace txt
 }  // namespace yellow
