@@ -1,0 +1,75 @@
+blueprint:
+  name: Yellow – greeting line for the first tap of the day
+  description: >-
+    Every morning writes one extra line for Yellow's first-tap greeting to `yellow/<device>/data/greeting` (retained).
+    The line comes from an AI Task entity (any LLM set up in Home Assistant) or, without one, from the state of any
+    entity. With neither, the line is cleared ("-") and the greeting shows only the weekday and the weather.
+  domain: automation
+  source_url: https://github.com/Ottes42/cheap-yellow-companion/blob/main/homeassistant/blueprints/automation/yellow_greeting.yaml
+  input:
+    device:
+      name: Device
+      description: The `device` substitution of the device (MQTT topics yellow/<device>/…)
+      default: yellow
+      selector:
+        text:
+    time:
+      name: Time
+      description: When the line is written. Before 05:00, because the greeting can come from 05:00 on.
+      default: "04:30:00"
+      selector:
+        time:
+    ai_task:
+      name: AI Task entity (optional)
+      description: Writes a new line every day with the instructions below
+      default: ""
+      selector:
+        entity:
+          domain: ai_task
+    instructions:
+      name: Instructions for the AI Task
+      description: Name the language of your device in it (e.g. "Answer in German.")
+      default: >-
+        Write one short, dry, friendly line (at most 60 characters, no emoji, no quotes) that a small desk companion
+        says to its owner on the first tap of the morning. Today is {{ now().strftime('%A, %d %B') }}. Answer in English.
+      selector:
+        text:
+          multiline: true
+    source:
+      name: Entity instead of an AI Task (optional)
+      description: Its state is sent as the line, e.g. an input_text you fill yourself
+      default: ""
+      selector:
+        entity:
+
+mode: single
+
+triggers:
+  - trigger: time
+    at: !input time
+
+variables:
+  device: !input device
+  ai_task: !input ai_task
+  source: !input source
+
+actions:
+  - if: "{{ ai_task != '' }}"
+    then:
+      - action: ai_task.generate_data
+        data:
+          entity_id: "{{ ai_task }}"
+          task_name: Yellow greeting
+          instructions: !input instructions
+        response_variable: result
+        continue_on_error: true
+  - variables:
+      line: >-
+        {% if result is defined and result.data is string and result.data | trim %}{{ result.data | trim | truncate(80, false, '…', 0) }}
+        {% elif source and states(source) not in ['unknown', 'unavailable', ''] %}{{ states(source) | truncate(80, false, '…', 0) }}
+        {% else %}-{% endif %}
+  - action: mqtt.publish
+    data:
+      topic: "yellow/{{ device }}/data/greeting"
+      payload: "{{ line | trim }}"
+      retain: true

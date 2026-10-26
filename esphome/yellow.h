@@ -22,6 +22,8 @@ class Companion {
   std::function<void()> woke_up;
   // Yellow was petted; text of the sign if one was visible in the last 15 s (= favourite saying)
   std::function<void(const std::string &)> petted;
+  // a tap; returns true if the YAML showed the first-tap-of-the-day greeting instead (then no other reaction)
+  std::function<bool()> first_tap;
 
   // Jewelry (bling, combines with hat/crown): golden chain with a sparkling pendant, fox with earrings
   void jewelry(bool on) {
@@ -238,6 +240,7 @@ class Companion {
     if (sleeping_) {  // a tap wakes him
       sleep(false);
       if (woke_up) woke_up();
+      if (first_tap && first_tap()) later_at_ = 0;  // the greeting replaces "Morning already?"
       return;
     }
     counts_[TAPS]++;
@@ -246,6 +249,11 @@ class Companion {
       for_a_while(ANNOYED, 1500);
       anim(cb_look_x, look_x_, -12, 200);
       show_sign(huff[rnd(4)], 2);
+      return;
+    }
+    if (first_tap && first_tap()) {
+      for_a_while(HAPPY, 2500);
+      wave(2500);
       return;
     }
     if (now_ms - poke_start_ > 3000) {

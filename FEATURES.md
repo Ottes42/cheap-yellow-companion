@@ -49,6 +49,7 @@ Where it lives: `esphome/yellow.h` (class `Companion`, tick loop) and `esphome/y
 | Feature | Description | Since |
 |---|---|---|
 | Tap | He hops and is happy; a tap also picks up waiting post, answers a ringing timer or wakes him. | 0.1.0 |
+| First tap of the day | From 05:00 the first tap gets a greeting instead: "Good morning" ("Hi" from 11:00) with the owner's name, a dry line for the weekday, the weather and an optional line from Home Assistant (`data/greeting`). Once a day, also after a reboot. | 0.4.0 |
 | Follows your finger | Eyes follow the finger; the nearest arm (Okti), the robot's hand or the fox's paw reaches for it. | 0.1.0 |
 | Pet (swipe) | Swiping pets him: happy, blushing, warm LED. Reports which sign was showing (his "favourite line"). | 0.1.0 |
 | Hold | Long press shows the day's info as signs: alarm, appointment, weather, hint, room temperature. | 0.1.0 |
@@ -132,6 +133,7 @@ Setup, entities and blueprints in detail: [docs/homeassistant.md](docs/homeassis
 | Device entities | Over the ESPHome API: sliders for mood, tension and energy; switches for sleep, night off, wake-up mode and auto brightness; selects for view, decoration and character; buttons for play post, clear post, cancel question and the three games; sensors for waiting messages, today's counters, visible, Wi-Fi name, light level and free memory; display backlight and status LED as lights. | 0.1.0 |
 | Dashboard card | The real Yellow in the browser as a Lovelace card (same firmware, WebAssembly): touch like on the device, follows the device's character, decoration and sliders and the weather; its own Yellow, without commands or messages. [docs/card.md](docs/card.md) | 0.3.0 |
 | Blueprint: send data | Weather, next alarm, next appointment, a hint line, outdoor/room temperature and humidity. | 0.1.0 |
+| Blueprint: greeting line | Writes the extra line for the first-tap greeting every morning, from an AI Task (any LLM) or any entity. | 0.4.0 |
 | Blueprint: doorbell | Sends the doorbell event. | 0.1.0 |
 | Blueprint: voice assistant ring | Yellow looks over when the assistant's LED ring lights up. | 0.1.0 |
 | Blueprint: read receipt | Your actions when a message or love letter was read. | 0.1.0 |

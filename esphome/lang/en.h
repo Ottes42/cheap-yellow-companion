@@ -147,6 +147,9 @@ constexpr const char *ROUNDS_PLURAL = "s";
 constexpr const char *DATE_FMT = "%s %d %s";  // weekday, day, month
 constexpr bool DECIMAL_COMMA = false;
 static const char *const DAYS[7] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+constexpr const char *GOOD_MORNING = "Good morning";  // first tap of the day, before 11:00
+constexpr const char *HI_THERE = "Hi";  // first tap of the day, from 11:00
+static const char *const WEEKDAY_LINE[7] = {"Sunday. Slow mode on.", "Monday. Coffee first.", "Tuesday. Still going.", "Wednesday. Half done.", "Thursday. Almost there.", "Friday. You made it.", "Saturday. Take it easy."};  // Sunday first, like DAYS
 static const char *const MONTHS[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 // Idle sayings: shared plus per character (Okti clumsy, robot overly precise, fox brave)

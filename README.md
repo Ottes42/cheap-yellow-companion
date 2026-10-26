@@ -68,7 +68,7 @@ same keys.
   `question` (question, options `"Yes|No"`), `game` (game: reaction, ttt, simon), `timer` (seconds, name),
   `sleep` (on), `away` (on, card), `matrix` (seconds), `nabu_direction` (direction), `telemetry`;
   for testing: `decor_test` (occasion), `weather` (condition), `boredom_test` (minutes), `network_test` (level),
-  `wifi_dialog`; `image` (seconds) only with `yellow-screenshot.yaml`.
+  `wifi_dialog`, `greeting_test` (the next tap greets again), `tap` (a tap on Yellow); `image` (seconds) only with `yellow-screenshot.yaml`.
   - expressions: normal, happy, surprised, dizzy, tired, annoyed, sad, asleep, yawn
   - gestures: hop, wobble, wiggle, nod, shake_head, wave, startle, oracle, wilt, dance, hearts, help, blunder,
     fist_bump, light_scare, special, nabu_visits, visit_nabu; per character ink, knot, juggle (Okti), mouse_dive,
@@ -77,7 +77,7 @@ same keys.
     effects: sweat, tear, blush, sparkle, none; accessories: hat, crown, star, flower, none;
     directions: left, right, up, down, center
 - `data/<name>` (retained) – occasion, alarm, appointment, notice, weather, weather_condition, outdoor_temp,
-  room_temp, room_humidity, sayings; events without retain: doorbell, nabu_ring.
+  room_temp, room_humidity, sayings, greeting (extra line for the first tap of the day); events without retain: doorbell, nabu_ring.
   Occasions: easter, new_year, valentine, carnival, advent (`advent|2`), st_nicholas, st_martin, birthday
   (`birthday|Name`), mothers_day, fathers_day, harvest, oktoberfest, beer, clock_change, full_moon, perseids,
   solstice, friday13, starwars, pi, towel, pirate, 420, future, hobbit, coffee, programmer, cat, blackfriday, ufo,

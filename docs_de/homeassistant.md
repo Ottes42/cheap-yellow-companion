@@ -92,6 +92,26 @@ automation:
         alarm: sensor.handy_naechster_wecker
 ```
 
+### Gruß-Zeile
+
+[![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_greeting.yaml)
+`automation/yellow_greeting.yaml`
+
+Der erste Tipp des Tages (ab 05:00) zeigt einen Gruß: „Guten Morgen“ (ab 11:00 „Hallo“), einen Satz zum Wochentag,
+das Wetter aus *Daten senden* und eine Zusatzzeile aus `data/greeting`. Dieser Blueprint schreibt die Zeile jeden
+Morgen (Standard 04:30). Mit einer AI-Task-Entität fragt er dein LLM (Anweisung änderbar), ohne sie schickt er den
+Zustand einer beliebigen Entität (z. B. `input_text`), ohne beides leert er die Zeile (`-`). Eingänge: `device`,
+`time`, `ai_task`, `instructions`, `source`. Test am Gerät: Befehl `greeting_test`, dann Yellow antippen.
+
+```yaml
+automation:
+  - use_blueprint:
+      path: Ottes42/yellow_greeting.yaml
+      input:
+        device: yellow
+        ai_task: ai_task.mein_llm
+```
+
 ### Türklingel
 
 [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_doorbell.yaml)

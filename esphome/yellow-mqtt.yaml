@@ -2,7 +2,7 @@
 # Commands: JSON to yellow/${device}/command, {"action": …} plus the fields of the action
 #   (message: text/wait/seconds, love_letter: text, expression, prop, decor_test: occasion, effect: name, …).
 # Data (retained, from HA or the server): yellow/${device}/data/<occasion|alarm|appointment|notice|weather|
-#   weather_condition|outdoor_temp|room_temp|room_humidity>, events without retain: data/doorbell, data/nabu_ring.
+#   weather_condition|outdoor_temp|room_temp|room_humidity|greeting>, events without retain: data/doorbell, data/nabu_ring.
 # Events from the device: JSON to yellow/${device}/event (type read/answer/game/petted/timer_off).
 # Status: yellow/${device}/status online/offline (retained, last will). The profile sets broker and TLS.
 mqtt:
@@ -39,6 +39,8 @@ mqtt:
             else if (a == "prop") f.prop(s("prop"), sec);
             else if (a == "decor_test") f.decor_test(s("occasion"));
             else if (a == "effect") f.effect(s("name"), sec);
+            else if (a == "greeting_test") id(greeted_day) = -1;  // the next tap greets again
+            else if (a == "tap") f.poke();  // a tap on Yellow for testing (only pokes: no post, games, questions)
             else if (a == "boredom_test") f.boredom_test(x["minutes"] | 0);
             else if (a == "away") f.away(on, s("card"));
             else if (a == "matrix") f.matrix(sec);
@@ -120,6 +122,9 @@ text_sensor:
     topic: yellow/${device}/data/notice
     on_value:
       - script.execute: draw_rows
+  - platform: mqtt_subscribe # extra line for the first-tap greeting (e.g. from an LLM), "-" = none
+    id: ha_greeting
+    topic: yellow/${device}/data/greeting
   - platform: mqtt_subscribe
     id: ha_weather
     topic: yellow/${device}/data/weather

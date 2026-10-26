@@ -64,6 +64,20 @@ esphome:
             id(yellow_sleep).publish_state(false);
             id(log_activity).execute(std::string("woke_up"));
           };
+          yellow::companion.first_tap = []() -> bool {  // greeting on the first tap from 05:00, once a day
+            auto t = id(ha_time).now();
+            if (!t.is_valid() || t.hour < 5 || id(greeted_day) == t.day_of_year) return false;
+            id(greeted_day) = t.day_of_year;
+            auto good = [](const std::string &x) { return !x.empty() && x != "-" && x != "unknown" && x != "unavailable"; };
+            const std::string person = "${person}";
+            std::string g = t.hour >= 11 ? yellow::txt::HI_THERE : yellow::txt::GOOD_MORNING;
+            if (!person.empty()) g += ", " + person;
+            g += std::string("!\n") + yellow::txt::WEEKDAY_LINE[t.day_of_week - 1];
+            if (good(id(ha_weather).state)) g += "\n" + id(ha_weather).state;
+            if (good(id(ha_greeting).state)) g += "\n" + id(ha_greeting).state;
+            yellow::companion.message(g, false, 3);
+            return true;
+          };
           yellow::companion.petted = [](const std::string &sign) {
             event("petted", sign, "", 0);
           };
@@ -98,6 +112,10 @@ esphome:
           else yellow::companion.message(str_sprintf(yellow::txt::GREETING_FMT, person.c_str(), companion_name.c_str()), false, 3);
 
 globals:
+  - id: greeted_day # day of the year of the last first-tap greeting (kept over reboots: one greeting a day)
+    type: int
+    restore_value: true
+    initial_value: "-1"
   - id: network_test # command network_test: only show a network level (1 Wi-Fi, 2 MQTT, 3 internet; 0 = real)
     type: int
     initial_value: "0"

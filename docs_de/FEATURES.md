@@ -39,6 +39,7 @@ Wo es steht: `esphome/yellow.h` (Klasse `Companion`, Tick-Schleife) und `esphome
 | Tageszähler | Statuszeile mit den heutigen Tipps, Streicheleinheiten, Spielen und Faustgrüßen; er kommentiert sie („Heute 10× angetippt. Reicht.“). Um Mitternacht zurückgesetzt. | 0.1.0 |
 | Langeweile-Treppe | Ab der letzten Berührung: 5 min neugierig, 10 min gelangweilt (tippt mit dem Arm), 20 min müde, 40 min döst, 60 min schmollt (rot, schaut weg; Antippen bringt nur „Hmpf.“, zweimal Streicheln versöhnt). | 0.1.0 |
 | Schlafen | Ins Bett schicken: Okti im Bett unter einer Decke, der Fuchs zusammengerollt, der Roboter im Standby mit pulsierendem Punkt. Antippen weckt ihn. | 0.1.0 |
+| Erster Tipp des Tages | Ab 05:00 bekommt der erste Tipp stattdessen einen Gruß: „Guten Morgen“ (ab 11:00 „Hallo“) mit dem Namen, ein trockener Satz zum Wochentag, das Wetter und eine optionale Zeile aus Home Assistant (`data/greeting`). Einmal am Tag, auch nach einem Neustart. | 0.4.0 |
 | Lichtschreck | Geht nach Dunkelheit das Zimmerlicht an, erschrickt er, jede Figur anders (der Fuchs blinzelt nur). | 0.1.0 |
 | Verreist | Yellow ist weg: ein Koffer mit Aufklebern und einem Zettel (dein Postkartentext); er kommt mit einem Souvenir-Requisit zurück. | 0.1.0 |
 | Besuche | Yellow läuft aus dem Bild zum Sprachassistenten und kommt zurück; oder ein Mini-Sprachassistent kommt herein und Yellow begrüßt ihn. | 0.1.0 |
@@ -133,6 +134,7 @@ Einrichtung, Entitäten und Blueprints im Detail: [docs_de/homeassistant.md](hom
 | Geräte-Entitäten | Über die ESPHome-API: Regler für Stimmung, Anspannung und Energie; Schalter für Schlafen, Nachts aus, Weckmodus und Auto-Helligkeit; Auswahlen für Ansicht, Deko und Figur; Knöpfe für Post abspielen, Post leeren, Frage abbrechen und die drei Spiele; Sensoren für wartende Nachrichten, Tageszähler, sichtbar, WLAN-Name, Helligkeit und freien Speicher; Hintergrundlicht und Status-LED als Lichter. | 0.1.0 |
 | Dashboard-Karte | Das echte Yellow im Browser als Lovelace-Karte (dieselbe Firmware, WebAssembly): Touch wie auf dem Gerät, folgt Figur, Deko und Reglern des Geräts und dem Wetter; ein eigenes Yellow, ohne Befehle oder Nachrichten. [docs_de/card.md](card.md) | 0.3.0 |
 | Blueprint: Daten senden | Wetter, nächster Wecker, nächster Termin, eine Hinweiszeile, Außen-/Raumtemperatur und Feuchte. | 0.1.0 |
+| Blueprint: Gruß-Zeile | Schreibt jeden Morgen die Zusatzzeile für den Gruß beim ersten Tipp, per AI Task (beliebiges LLM) oder aus einer Entität. | 0.4.0 |
 | Blueprint: Türklingel | Schickt das Klingel-Ereignis. | 0.1.0 |
 | Blueprint: Ring des Sprachassistenten | Yellow schaut hin, wenn der LED-Ring des Assistenten leuchtet. | 0.1.0 |
 | Blueprint: Lesebestätigung | Eigene Aktionen, wenn eine Nachricht oder ein Liebesbrief gelesen wurde. | 0.1.0 |

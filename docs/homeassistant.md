@@ -88,6 +88,26 @@ automation:
         alarm: sensor.phone_next_alarm
 ```
 
+### Greeting line
+
+[![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_greeting.yaml)
+`automation/yellow_greeting.yaml`
+
+The first tap of the day (from 05:00) shows a greeting: "Good morning" ("Hi" from 11:00), a line for the weekday, the
+weather from *Send data*, and one extra line from `data/greeting`. This blueprint writes that line every morning
+(default 04:30). With an AI Task entity it asks your LLM (instructions editable); without one it sends the state of
+any entity (e.g. an `input_text`); with neither it clears the line (`-`). Inputs: `device`, `time`, `ai_task`,
+`instructions`, `source`. Test on the device: command `greeting_test`, then tap Yellow.
+
+```yaml
+automation:
+  - use_blueprint:
+      path: Ottes42/yellow_greeting.yaml
+      input:
+        device: yellow
+        ai_task: ai_task.my_llm
+```
+
 ### Doorbell
 
 [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FOttes42%2Fcheap-yellow-companion%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fyellow_doorbell.yaml)

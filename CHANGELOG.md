@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+- **First tap of the day** (#20): from 05:00 the first tap greets ("Good morning"/"Hi", name, a line per weekday,
+  weather, optional line from `data/greeting`), once a day, remembered over reboots. New blueprint
+  `yellow_greeting.yaml` writes that line every morning from an AI Task or an entity. Test commands `greeting_test`
+  and `tap`.
+
 ## [0.3.0] – 2026-10-25
 
 - **Dashboard card** (#11): the real Yellow in a Lovelace card, the unchanged firmware headers and LVGL compiled to
