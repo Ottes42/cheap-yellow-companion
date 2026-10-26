@@ -6,6 +6,7 @@
   weather, optional line from `data/greeting`), once a day, remembered over reboots. New blueprint
   `yellow_greeting.yaml` writes that line every morning from an AI Task or an entity. Test commands `greeting_test`
   and `tap`.
+- Fox: 17 more sayings about courage and fear (30 in total).
 
 ## [0.3.0] – 2026-10-25
 

@@ -168,7 +168,16 @@ static const char *const SAYINGS_FOX[] = {"I'm not scared.", "Clever as a fox.",
                                           "Be brave. Done.", "A fox never sleeps. Almost.", "You've got this.",
                                           "Courage is doing it anyway.", "Fear? Only heard of it.",
                                           "I've got your back.", "Let's try something new today.",
-                                          "Chin up, ears too.", "I'll go first.", "This will be good."};
+                                          "Chin up, ears too.", "I'll go first.", "This will be good.",
+                                          "I only flinched a little.", "I wasn't startled. I was alert.",
+                                          "Danger spotted. Ignored.", "Brave is my middle name.",
+                                          "Fear is just a feeling.", "I'm scared too. So what.",
+                                          "Fear can come along. Not drive.", "Brave doesn't mean fearless.",
+                                          "Okay, heart's racing a bit.", "Foxes count to three too.",
+                                          "You were braver than you think.", "One deep breath. Then go.",
+                                          "I'll hold the fort.", "Small steps count too.",
+                                          "I'm here when it gets loud.", "You don't have to do it alone.",
+                                          "Brave again tomorrow. Today's enough."};
 
 }  // namespace txt
 }  // namespace yellow

@@ -168,7 +168,16 @@ static const char *const SAYINGS_FOX[] = {"Ich hab keine Angst.", "Schlau wie ei
                                           "Mutig sein. Erledigt.", "Ein Fuchs schläft nie. Fast.", "Du schaffst das.",
                                           "Mut ist, es trotzdem zu tun.", "Angst? Kenn ich nur vom Hörensagen.",
                                           "Ich pass auf dich auf.", "Heute probieren wir was Neues.",
-                                          "Kopf hoch, Ohren auch.", "Ich geh vor.", "Das wird gut."};
+                                          "Kopf hoch, Ohren auch.", "Ich geh vor.", "Das wird gut.",
+                                          "Ich hab nur kurz gezuckt.", "Ich war nicht erschrocken. Ich war wachsam.",
+                                          "Gefahr erkannt. Ignoriert.", "Mutig ist mein Mittelname.",
+                                          "Angst ist nur ein Gefühl.", "Ich hab auch Angst. Na und.",
+                                          "Angst darf mitkommen. Nicht fahren.", "Mutig heißt nicht furchtlos.",
+                                          "Okay, kurz Herzklopfen.", "Auch Füchse zählen bis drei.",
+                                          "Du warst mutiger, als du denkst.", "Einmal tief atmen. Dann los.",
+                                          "Ich halt die Stellung.", "Kleine Schritte zählen auch.",
+                                          "Ich bin da, wenn's laut wird.", "Du musst das nicht allein.",
+                                          "Morgen ist wieder mutig. Heute reicht."};
 
 }  // namespace txt
 }  // namespace yellow
