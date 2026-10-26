@@ -7,6 +7,7 @@
   `yellow_greeting.yaml` writes that line every morning from an AI Task or an entity. Test commands `greeting_test`
   and `tap`.
 - Fox: 17 more sayings about courage and fear (30 in total).
+- Okti: 20 more sayings (mostly clumsy, 30 in total); robot: 19 more (overly precise, 30 in total).
 
 ## [0.3.0] – 2026-10-25
 
